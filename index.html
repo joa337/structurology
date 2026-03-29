@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structurology Paper Analyzer — 무료 버전</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap');
+  :root {
+    --bg:#0d0f14;--surface:#141720;--surface2:#1c2030;
+    --border:rgba(255,255,255,0.08);--accent:#00e5a0;
+    --accent2:#4d7cff;--amber:#f5a623;--red:#ff5c5c;
+    --text:#e8eaf0;--muted:#6b7280;
+    --mono:"DM Mono",monospace;--serif:"Fraunces",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;}
+  body::before{content:"";position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;}
+  .container{max-width:880px;margin:0 auto;padding:40px 24px;position:relative;z-index:1;}
+  .header{text-align:center;margin-bottom:36px;}
+  .header-tag{font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+  .header h1{font-family:var(--serif);font-size:36px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .header h1 span{color:var(--accent);font-style:italic;}
+  .header p{font-size:13px;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto;}
+  .badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:0.05em;}
+  .badge-f{background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:var(--accent);}
+  .badge-s{background:rgba(77,124,255,0.1);border:1px solid rgba(77,124,255,0.3);color:var(--accent2);}
+  .badge-d{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:var(--amber);}
+  .counter-bar{display:flex;justify-content:center;align-items:center;gap:24px;
+    margin:20px 0 28px;padding:14px 24px;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;}
+  .counter-item{text-align:center;}
+  .counter-num{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--accent);line-height:1;margin-bottom:4px;}
+  .counter-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;}
+  .counter-divider{width:1px;height:36px;background:var(--border);}
+  .api-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .api-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:10px;}
+  .api-row{display:flex;gap:10px;align-items:center;}
+  .api-input{flex:1;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);
+    border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;}
+  .api-input:focus{border-color:var(--accent);}
+  .api-save-btn{padding:10px 16px;background:rgba(0,229,160,0.1);color:var(--accent);
+    border:1px solid rgba(0,229,160,0.3);border-radius:8px;font-family:var(--mono);
+    font-size:12px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .api-save-btn:hover{background:rgba(0,229,160,0.2);}
+  .api-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .api-note a{color:var(--accent2);text-decoration:none;}
+  .api-status{font-size:11px;margin-top:8px;padding:6px 10px;border-radius:6px;display:none;}
+  .api-status.ok{background:rgba(0,229,160,0.1);color:var(--accent);display:block;}
+  .api-status.err{background:rgba(255,92,92,0.1);color:var(--red);display:block;}
+  .upload-zone{position:relative;border:1px dashed rgba(0,229,160,0.3);border-radius:12px;padding:32px;
+    text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface);margin-bottom:16px;}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(0,229,160,0.04);}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .upload-icon{font-size:26px;margin-bottom:10px;}
+  .upload-zone h3{font-family:var(--serif);font-size:16px;font-weight:300;margin-bottom:5px;}
+  .upload-zone p{font-size:12px;color:var(--muted);}
+  .file-name{margin-top:10px;font-size:12px;color:var(--accent);display:none;}
+  .analyze-btn{width:100%;padding:15px;background:var(--accent);color:#000;border:none;
+    border-radius:8px;font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;
+    transition:all 0.2s;margin-bottom:28px;}
+  .analyze-btn:hover:not(:disabled){background:#00ffb3;transform:translateY(-1px);}
+  .analyze-btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .loading{display:none;text-align:center;padding:36px;}
+  .loading.active{display:block;}
+  .spinner{width:30px;height:30px;border:2px solid rgba(0,229,160,0.15);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{font-size:12px;color:var(--accent);}
+  .loading-step{font-size:11px;color:var(--muted);margin-top:6px;}
+  .error-box{background:rgba(255,92,92,0.1);border:1px solid rgba(255,92,92,0.3);
+    border-radius:8px;padding:14px 16px;font-size:12px;color:var(--red);
+    display:none;margin-bottom:16px;}
+  .error-box.active{display:block;}
+  .result{display:none;}
+  .result.active{display:block;}
+  .analysis-badge{display:inline-block;padding:6px 14px;background:rgba(0,229,160,0.1);
+    border:1px solid rgba(0,229,160,0.3);border-radius:20px;font-size:12px;
+    color:var(--accent);margin-bottom:16px;}
+  .paper-title-box{background:var(--surface);border:1px solid var(--border);
+    border-left:3px solid var(--accent);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .paper-title-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
+  .paper-title-text{font-family:var(--serif);font-size:15px;font-weight:300;color:var(--text);line-height:1.4;}
+  .fsd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .fsd-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
+  .fsd-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;}
+  .fsd-card.f::before{background:var(--accent);}
+  .fsd-card.s::before{background:var(--accent2);}
+  .fsd-card.d::before{background:var(--amber);}
+  .fsd-axis-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;}
+  .fsd-card.f .fsd-axis-label{color:var(--accent);}
+  .fsd-card.s .fsd-axis-label{color:var(--accent2);}
+  .fsd-card.d .fsd-axis-label{color:var(--amber);}
+  .fsd-title{font-family:var(--serif);font-size:14px;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .fsd-status{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;margin-bottom:8px;}
+  .status-new{background:rgba(0,229,160,0.15);color:var(--accent);}
+  .status-same{background:rgba(255,92,92,0.15);color:var(--red);}
+  .status-expand{background:rgba(77,124,255,0.15);color:var(--accent2);}
+  .status-partial{background:rgba(245,166,35,0.15);color:var(--amber);}
+  .fsd-desc{font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .fsd-limit{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+  .fsd-limit-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px;}
+  .score-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .score-label{font-size:11px;width:14px;color:var(--muted);}
+  .score-bar-bg{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+  .score-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+  .score-bar-fill.f{background:var(--accent);}
+  .score-bar-fill.s{background:var(--accent2);}
+  .score-bar-fill.d{background:var(--amber);}
+  .score-val{font-size:11px;color:var(--muted);width:32px;text-align:right;}
+  .te-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+  .te-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .te-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+  .te-value{font-family:var(--serif);font-size:26px;font-weight:700;margin-bottom:6px;}
+  .te-value.t1{color:var(--accent);}
+  .te-value.t0{color:var(--red);}
+  .te-desc{font-size:11px;color:var(--muted);line-height:1.6;}
+  .te-next{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;}
+  .te-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+  .score-summary{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .score-summary-title{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+  .score-total{font-family:var(--serif);font-size:32px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .verdict-box{border-radius:10px;padding:20px;margin-bottom:20px;}
+  .verdict-box.innovation{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);}
+  .verdict-box.analysis{background:rgba(107,114,128,0.1);border:1px solid rgba(107,114,128,0.3);}
+  .verdict-box.improvement{background:rgba(77,124,255,0.08);border:1px solid rgba(77,124,255,0.3);}
+  .verdict-box.paradigm{background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.3);}
+  .verdict-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;color:var(--muted);}
+  .verdict-title{font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:8px;}
+  .verdict-box.innovation .verdict-title{color:var(--accent);}
+  .verdict-box.analysis .verdict-title{color:var(--muted);}
+  .verdict-box.improvement .verdict-title{color:var(--accent2);}
+  .verdict-box.paradigm .verdict-title{color:var(--amber);}
+  .verdict-text{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .verdict-gap{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;}
+  .verdict-gap-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--amber);margin-bottom:4px;}
+  .verdict-next{font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px;}
+  .verdict-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+  .omega-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .omega-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .omega-value{font-family:var(--serif);font-size:22px;font-weight:700;margin-bottom:8px;}
+  .omega-value.yes{color:var(--accent);}
+  .omega-value.no{color:var(--red);}
+  .omega-value.potential{color:var(--amber);}
+  .omega-text{font-size:12px;color:var(--muted);line-height:1.8;}
+  .summary-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .summary-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .summary-text{font-size:12px;color:var(--muted);line-height:1.8;}
+  .rec-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .rec-label{font-size:10px;letter-spacing:0.15em;color:var(--accent2);text-transform:uppercase;margin-bottom:10px;}
+  .rec-item{font-size:12px;color:var(--muted);line-height:1.7;padding:6px 0;border-bottom:1px solid var(--border);}
+  .rec-item:last-child{border-bottom:none;}
+  .rec-num{color:var(--accent2);margin-right:8px;}
+  .download-btn{width:100%;padding:14px;background:rgba(77,124,255,0.1);color:var(--accent2);
+    border:1px solid rgba(77,124,255,0.3);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;margin-bottom:12px;}
+  .download-btn:hover{background:rgba(77,124,255,0.2);}
+  .reset-btn{width:100%;padding:12px;background:transparent;color:var(--muted);
+    border:1px solid var(--border);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;margin-bottom:40px;}
+  .reset-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+  .footer{text-align:center;padding-top:24px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--muted);line-height:1.8;font-family:var(--mono);}
+  .footer a{color:var(--accent);text-decoration:none;}
+  .footer a:hover{text-decoration:underline;}
+  @media(max-width:600px){
+    .fsd-grid{grid-template-columns:1fr;}
+    .te-grid{grid-template-columns:1fr;}
+    .header h1{font-size:26px;}
+    .api-row{flex-direction:column;}
+    .counter-divider{display:none;}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-tag">Structurology · A New Academic Framework</div>
+    <h1>Paper <span>Structure Analyzer</span></h1>
+    <p>Deep structural analysis of academic papers using the Structurology FSD framework.<br>Structure determines characteristics — not components.</p>
+    <div class="badges">
+      <span class="badge badge-f">F — Force</span>
+      <span class="badge badge-s">S — Scope</span>
+      <span class="badge badge-d">D — Dimension</span>
+    </div>
+  </div>
+
+  <div class="counter-bar">
+    <div class="counter-item"><div class="counter-num" id="globalCount">—</div><div class="counter-label">Papers analyzed</div></div>
+    <div class="counter-divider"></div>
+    <div class="counter-item"><div class="counter-num" id="todayCount">—</div><div class="counter-label">Today</div></div>
+    <div class="counter-divider"></div>
+    <div class="counter-item"><div class="counter-num" id="myCount">—</div><div class="counter-label">Your analyses</div></div>
+  </div>
+
+  <!-- API Key -->
+  <div class="api-section">
+    <div class="api-label">DeepSeek API Key (무료)</div>
+    <div class="api-row">
+      <input type="password" id="deepseekKeyInput" class="api-input" placeholder="sk-...">
+      <button class="api-save-btn" onclick="saveDeepseekKey()">Save</button>
+    </div>
+    <div class="api-status" id="deepseekStatus"></div>
+    <div class="api-note">Get your key at <a href="https://platform.deepseek.com" target="_blank">platform.deepseek.com</a> — 신규 가입 시 $5 무료!</div>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".pdf">
+    <div class="upload-icon">⬡</div>
+    <h3>PDF 논문을 드래그하거나 클릭하세요</h3>
+    <p>arXiv, 학술지, 컨퍼런스 논문 등 어떤 PDF든 가능</p>
+    <div class="file-name" id="fileName"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <button class="analyze-btn" id="analyzeBtn" disabled>⬡ &nbsp; 구조학 FSD 분석 시작</button>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">분석 중...</div>
+    <div class="loading-step" id="loadingStep">PDF 읽는 중</div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="analysis-badge" id="analysisBadge">⬡ Analysis #—</div>
+    <div class="paper-title-box"><div class="paper-title-label">분석 논문</div><div class="paper-title-text" id="paperTitle">—</div></div>
+    <div class="fsd-grid">
+      <div class="fsd-card f"><div class="fsd-axis-label">F — 힘</div><div class="fsd-title">힘의 변화</div><div class="fsd-status" id="fStatus">—</div><div class="fsd-desc" id="fDesc">—</div><div class="fsd-limit"><div class="fsd-limit-label">남은 한계</div><div id="fLimit">—</div></div><div class="score-row"><span class="score-label">F</span><div class="score-bar-bg"><div class="score-bar-fill f" id="fBar" style="width:0%"></div></div><span class="score-val" id="fScore">0/100</span></div></div>
+      <div class="fsd-card s"><div class="fsd-axis-label">S — 범위</div><div class="fsd-title">범위의 변화</div><div class="fsd-status" id="sStatus">—</div><div class="fsd-desc" id="sDesc">—</div><div class="fsd-limit"><div class="fsd-limit-label">남은 한계</div><div id="sLimit">—</div></div><div class="score-row"><span class="score-label">S</span><div class="score-bar-bg"><div class="score-bar-fill s" id="sBar" style="width:0%"></div></div><span class="score-val" id="sScore">0/100</span></div></div>
+      <div class="fsd-card d"><div class="fsd-axis-label">D — 차원</div><div class="fsd-title">차원의 변화</div><div class="fsd-status" id="dStatus">—</div><div class="fsd-desc" id="dDesc">—</div><div class="fsd-limit"><div class="fsd-limit-label">남은 한계</div><div id="dLimit">—</div></div><div class="score-row"><span class="score-label">D</span><div class="score-bar-bg"><div class="score-bar-fill d" id="dBar" style="width:0%"></div></div><span class="score-val" id="dScore">0/100</span></div></div>
+    </div>
+    <div class="te-grid">
+      <div class="te-card"><div class="te-label">T — 구조 전이</div><div class="te-value" id="tValue">—</div><div class="te-desc" id="tDesc">—</div><div class="te-next"><div class="te-next-label">T=1이 되려면</div><div id="tNext">—</div></div></div>
+      <div class="score-summary"><div class="score-summary-title">FSD 혁신 점수</div><div class="score-total" id="totalScore">—</div><div class="score-total-label">/ 300</div><div style="margin-top:14px"><div class="score-row" style="margin-bottom:6px"><span class="score-label">F</span><div class="score-bar-bg"><div class="score-bar-fill f" id="fBar2" style="width:0%"></div></div><span class="score-val" id="fScore2">0</span></div><div class="score-row" style="margin-bottom:6px"><span class="score-label">S</span><div class="score-bar-bg"><div class="score-bar-fill s" id="sBar2" style="width:0%"></div></div><span class="score-val" id="sScore2">0</span></div><div class="score-row"><span class="score-label">D</span><div class="score-bar-bg"><div class="score-bar-fill d" id="dBar2" style="width:0%"></div></div><span class="score-val" id="dScore2">0</span></div></div></div>
+    </div>
+    <div class="omega-box"><div class="omega-label">Ω — 구조적 창발</div><div class="omega-value" id="omegaValue">—</div><div class="omega-text" id="omegaText">—</div></div>
+    <div class="verdict-box" id="verdictBox"><div class="verdict-label">구조학 최종 판정</div><div class="verdict-title" id="verdictTitle">—</div><div class="verdict-text" id="verdictText">—</div><div class="verdict-gap"><div class="verdict-gap-label">남은 구조적 결함</div><div id="verdictGap">—</div></div><div class="verdict-next"><div class="verdict-next-label">다음 구조적 단계</div><div id="verdictNext">—</div></div></div>
+    <div class="rec-box"><div class="rec-label">T=1을 위한 구체적 제안</div><div id="recList">—</div></div>
+    <div class="summary-box"><div class="summary-label">구조학적 해석</div><div class="summary-text" id="summaryText">—</div></div>
+    <button class="download-btn" onclick="downloadPDF()">⬡ &nbsp; PDF 리포트 다운로드</button>
+    <button class="reset-btn" onclick="resetAnalyzer()">다른 논문 분석</button>
+  </div>
+
+  <div class="footer">
+    <div>Structurology — 새로운 학문 프레임워크</div>
+    <div>Conceived and developed by <strong>Changho Song</strong>, founder of Velsanet</div>
+    <div>Powered by <strong>DeepSeek</strong> (무료) · PDF.js</div>
+    <div style="margin-top:8px"><a href="https://github.com/joa337/structurology" target="_blank">github.com/joa337/structurology</a></div>
+    <div style="margin-top:6px;font-size:10px;color:#333">Structure belongs to everyone — Structurology is an open framework.</div>
+  </div>
+</div>
+
+<script>
+// ========== 상태 ==========
+let fileData = null;
+let deepseekKey = localStorage.getItem('structurology_deepseek_key') || '';
+
+// DOM
+const deepseekInput = document.getElementById('deepseekKeyInput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+const fileNameSpan = document.getElementById('fileName');
+const errorBox = document.getElementById('errorBox');
+const loadingDiv = document.getElementById('loading');
+const resultDiv = document.getElementById('result');
+
+// ========== PDF 텍스트 추출 ==========
+async function extractTextFromPDF(base64Data) {
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+  
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    fullText += `--- Page ${i} ---\n${textContent.items.map(item => item.str).join(' ')}\n\n`;
+  }
+  return fullText;
+}
+
+// ========== API 키 ==========
+function saveDeepseekKey() {
+  const val = deepseekInput.value.trim();
+  if (!val.startsWith('sk-')) {
+    showStatus('deepseekStatus', 'err', '올바른 DeepSeek 키가 아닙니다');
+    return;
+  }
+  deepseekKey = val;
+  localStorage.setItem('structurology_deepseek_key', val);
+  showStatus('deepseekStatus', 'ok', 'API 키 저장됨');
+  updateAnalyzeBtn();
+}
+
+function showStatus(elId, type, msg) {
+  const el = document.getElementById(elId);
+  if (el) {
+    el.className = 'api-status ' + type;
+    el.textContent = (type === 'ok' ? '✓ ' : '✗ ') + msg;
+    setTimeout(() => { if (el.className !== 'api-status') el.className = 'api-status'; }, 3000);
+  }
+}
+
+function updateAnalyzeBtn() {
+  const hasKey = deepseekKey && deepseekKey.startsWith('sk-');
+  analyzeBtn.disabled = !(hasKey && fileData);
+}
+
+// ========== 파일 업로드 ==========
+function handleFile(file) {
+  if (!file || file.type !== 'application/pdf') {
+    showError('PDF 파일을 업로드하세요');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    fileData = e.target.result.split(',')[1];
+    fileNameSpan.textContent = '⬡ ' + file.name;
+    fileNameSpan.style.display = 'block';
+    errorBox.classList.remove('active');
+    updateAnalyzeBtn();
+  };
+  reader.onerror = () => showError('파일 읽기 실패');
+  reader.readAsDataURL(file);
+}
+
+function onFileChange(e) { if (e.target.files[0]) handleFile(e.target.files[0]); }
+
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    handleFile(file);
+    if (fileInput) { const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files; }
+  } else showError('PDF 파일을 드롭하세요');
+});
+fileInput.addEventListener('change', onFileChange);
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('active');
+  setTimeout(() => errorBox.classList.remove('active'), 5000);
+}
+
+// ========== SYSTEM PROMPT ==========
+const SYSTEM_PROMPT = `You are a Structurology (구조학) paper analysis expert. 
+
+CORE PROPOSITION: "Structure determines characteristics. Not the components."
+
+FSD FRAMEWORK:
+F (Force) - NEW(70-100)/EXPAND(40-70)/PARTIAL(20-40)/SAME(0-20)
+S (Scope) - EXPAND(70-100)/PARTIAL(30-50)/SAME(0-20)
+D (Dimension) - NEW(70-100)/PARTIAL(30-60)/SAME(0-20)
+T (Transfer) - T=1 (new properties emerge) / T=0 (bounded)
+Ω (Emergence) - YES/NO/POTENTIAL
+
+Respond ONLY in JSON:
+{
+  "title": "paper title",
+  "f": {"status": "new|same|expand|partial", "statusLabel": "...", "desc": "...", "limitation": "...", "score": 0},
+  "s": {"status": "new|same|expand|partial", "statusLabel": "...", "desc": "...", "limitation": "...", "score": 0},
+  "d": {"status": "new|same|expand|partial", "statusLabel": "...", "desc": "...", "limitation": "...", "score": 0},
+  "t": {"value": "T=1|T=0", "desc": "...", "next": "..."},
+  "omega": {"value": "YES|NO|POTENTIAL", "text": "..."},
+  "verdict": {"type": "paradigm|innovation|improvement|analysis", "title": "...", "text": "...", "gap": "...", "next": "..."},
+  "recommendations": ["step1","step2","step3","step4"],
+  "summary": "..."
+}`;
+
+// ========== 분석 (무료 deepseek-chat 사용) ==========
+async function analyze() {
+  if (!fileData) { showError('PDF를 먼저 업로드하세요'); return; }
+  if (!deepseekKey) { showError('DeepSeek API 키를 저장하세요'); return; }
+
+  errorBox.classList.remove('active');
+  resultDiv.classList.remove('active');
+  loadingDiv.classList.add('active');
+  analyzeBtn.disabled = true;
+
+  const loadingText = document.getElementById('loadingText');
+  const loadingStep = document.getElementById('loadingStep');
+
+  try {
+    loadingText.textContent = 'PDF 텍스트 추출 중...';
+    loadingStep.textContent = 'PDF.js (로컬, 무료)';
+    const extractedText = await extractTextFromPDF(fileData);
+
+    loadingText.textContent = 'DeepSeek FSD 분석 중...';
+    loadingStep.textContent = '구조학 프레임워크 적용 중';
+
+    // 🔥 여기가 중요: deepseek-chat (무료 모델) 사용!
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + deepseekKey },
+      body: JSON.stringify({
+        model: 'deepseek-chat',  // ← 무료 모델!
+        max_tokens: 4000,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: 'Analyze this paper using Structurology FSD. Respond in JSON only.\n\n' + extractedText.substring(0, 25000) }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'API 오류');
+    }
+
+    const data = await response.json();
+    const raw = data.choices[0].message.content;
+    const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    incrementCounter();
+    renderResult(result);
+
+  } catch (err) {
+    loadingDiv.classList.remove('active');
+    showError('분석 실패: ' + err.message);
+    analyzeBtn.disabled = false;
+  }
+}
+
+analyzeBtn.addEventListener('click', analyze);
+
+// ========== 결과 렌더링 ==========
+function renderResult(r) {
+  loadingDiv.classList.remove('active');
+  resultDiv.classList.add('active');
+  analyzeBtn.disabled = false;
+
+  document.getElementById('paperTitle').textContent = r.title;
+  const axes = ['f','s','d'];
+  axes.forEach(axis => {
+    const d = r[axis];
+    const statusEl = document.getElementById(axis + 'Status');
+    if (statusEl) {
+      statusEl.textContent = d.statusLabel;
+      statusEl.className = 'fsd-status status-' + (d.status === 'new' ? 'new' : d.status === 'same' ? 'same' : d.status === 'expand' ? 'expand' : 'partial');
+    }
+    document.getElementById(axis + 'Desc').textContent = d.desc;
+    document.getElementById(axis + 'Limit').textContent = d.limitation;
+    const bar = document.getElementById(axis + 'Bar');
+    const bar2 = document.getElementById(axis + 'Bar2');
+    const scoreEl = document.getElementById(axis + 'Score');
+    const score2El = document.getElementById(axis + 'Score2');
+    if (bar) setTimeout(() => bar.style.width = d.score + '%', 200);
+    if (bar2) setTimeout(() => bar2.style.width = d.score + '%', 200);
+    if (scoreEl) scoreEl.textContent = d.score + '/100';
+    if (score2El) score2El.textContent = d.score;
+  });
+
+  const total = (r.f.score||0)+(r.s.score||0)+(r.d.score||0);
+  document.getElementById('totalScore').textContent = total;
+
+  const tv = document.getElementById('tValue');
+  tv.textContent = r.t.value;
+  tv.className = 'te-value ' + (r.t.value === 'T=1' ? 't1' : 't0');
+  document.getElementById('tDesc').textContent = r.t.desc;
+  document.getElementById('tNext').textContent = r.t.next;
+
+  const ov = document.getElementById('omegaValue');
+  ov.textContent = 'Ω = ' + r.omega.value;
+  ov.className = 'omega-value ' + r.omega.value.toLowerCase();
+  document.getElementById('omegaText').textContent = r.omega.text;
+
+  const vb = document.getElementById('verdictBox');
+  vb.className = 'verdict-box ' + (r.verdict.type || 'analysis');
+  document.getElementById('verdictTitle').textContent = r.verdict.title;
+  document.getElementById('verdictText').textContent = r.verdict.text;
+  document.getElementById('verdictGap').textContent = r.verdict.gap;
+  document.getElementById('verdictNext').textContent = r.verdict.next;
+
+  const recList = document.getElementById('recList');
+  recList.innerHTML = '';
+  (r.recommendations || []).forEach((rec, i) => {
+    const div = document.createElement('div');
+    div.className = 'rec-item';
+    div.innerHTML = '<span class="rec-num">' + (i+1) + '.</span>' + rec;
+    recList.appendChild(div);
+  });
+
+  document.getElementById('summaryText').textContent = r.summary;
+}
+
+// ========== 카운터 ==========
+const TODAY_KEY = 'structurology-today-' + new Date().toISOString().slice(0,10);
+function loadCounters() {
+  document.getElementById('globalCount').textContent = localStorage.getItem('structurology_global_est') || '0';
+  document.getElementById('todayCount').textContent = localStorage.getItem(TODAY_KEY) || '0';
+  document.getElementById('myCount').textContent = localStorage.getItem('structurology_my_count') || '0';
+}
+function incrementCounter() {
+  const today = (parseInt(localStorage.getItem(TODAY_KEY)||'0')+1);
+  localStorage.setItem(TODAY_KEY, today);
+  document.getElementById('todayCount').textContent = today;
+  const mine = (parseInt(localStorage.getItem('structurology_my_count')||'0')+1);
+  localStorage.setItem('structurology_my_count', mine);
+  document.getElementById('myCount').textContent = mine;
+  const est = (parseInt(localStorage.getItem('structurology_global_est')||'0')+1);
+  localStorage.setItem('structurology_global_est', est);
+  document.getElementById('globalCount').textContent = est;
+  document.getElementById('analysisBadge').textContent = '⬡ Analysis #' + mine;
+}
+
+// ========== PDF 다운로드 ==========
+function downloadPDF() {
+  alert('PDF 리포트 기능: 브라우저 인쇄(Ctrl+P)로 저장 가능');
+}
+function resetAnalyzer() {
+  fileData = null;
+  fileInput.value = '';
+  fileNameSpan.style.display = 'none';
+  resultDiv.classList.remove('active');
+  errorBox.classList.remove('active');
+  updateAnalyzeBtn();
+}
+
+// ========== 시작 ==========
+window.onload = () => {
+  if (deepseekKey) deepseekInput.value = deepseekKey;
+  loadCounters();
+  updateAnalyzeBtn();
+};
+</script>
+</body>
+</html>

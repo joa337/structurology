@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structurology Paper Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap');
+  :root {
+    --bg:#0d0f14;--surface:#141720;--surface2:#1c2030;
+    --border:rgba(255,255,255,0.08);--accent:#00e5a0;
+    --accent2:#4d7cff;--amber:#f5a623;--red:#ff5c5c;
+    --text:#e8eaf0;--muted:#6b7280;
+    --mono:"DM Mono",monospace;--serif:"Fraunces",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;}
+  body::before{content:"";position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;}
+  .container{max-width:880px;margin:0 auto;padding:40px 24px;position:relative;z-index:1;}
+  .header{text-align:center;margin-bottom:36px;}
+  .header-tag{font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+  .header h1{font-family:var(--serif);font-size:36px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .header h1 span{color:var(--accent);font-style:italic;}
+  .header p{font-size:13px;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto;}
+  .badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:0.05em;}
+  .badge-f{background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:var(--accent);}
+  .badge-s{background:rgba(77,124,255,0.1);border:1px solid rgba(77,124,255,0.3);color:var(--accent2);}
+  .badge-d{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:var(--amber);}
+  .badge-local{background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.25);color:var(--red);}
+
+  /* Language Toggle */
+  .lang-toggle{position:fixed;top:18px;right:20px;z-index:100;display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+  .lang-btn{padding:7px 14px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.08em;cursor:pointer;border:none;transition:all 0.2s;background:var(--surface);color:var(--muted);}
+  .lang-btn.active{background:var(--accent);color:#000;}
+  .lang-btn:first-child{border-right:1px solid var(--border);}
+
+  .counter-bar{display:flex;justify-content:center;align-items:center;gap:24px;
+    margin:20px 0 28px;padding:14px 24px;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;}
+  .counter-item{text-align:center;}
+  .counter-num{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--accent);line-height:1;margin-bottom:4px;}
+  .counter-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;}
+  .counter-divider{width:1px;height:36px;background:var(--border);}
+  .info-bar{background:rgba(0,229,160,0.05);border:1px solid rgba(0,229,160,0.15);
+    border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--muted);line-height:1.7;}
+  .info-bar strong{color:var(--accent);}
+  .upload-zone{position:relative;border:1px dashed rgba(0,229,160,0.3);border-radius:12px;padding:40px 32px;
+    text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface);margin-bottom:16px;}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(0,229,160,0.04);}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .upload-icon{font-size:28px;margin-bottom:12px;}
+  .upload-zone h3{font-family:var(--serif);font-size:17px;font-weight:300;margin-bottom:6px;}
+  .upload-zone p{font-size:12px;color:var(--muted);}
+  .file-name{margin-top:10px;font-size:12px;color:var(--accent);display:none;}
+  .analyze-btn{width:100%;padding:15px;background:var(--accent);color:#000;border:none;
+    border-radius:8px;font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;
+    transition:all 0.2s;margin-bottom:28px;}
+  .analyze-btn:hover:not(:disabled){background:#00ffb3;transform:translateY(-1px);}
+  .analyze-btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .loading{display:none;text-align:center;padding:36px;}
+  .loading.active{display:block;}
+  .spinner{width:30px;height:30px;border:2px solid rgba(0,229,160,0.15);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{font-size:12px;color:var(--accent);}
+  .loading-step{font-size:11px;color:var(--muted);margin-top:6px;}
+  .error-box{background:rgba(255,92,92,0.1);border:1px solid rgba(255,92,92,0.3);
+    border-radius:8px;padding:14px 16px;font-size:12px;color:var(--red);display:none;margin-bottom:16px;}
+  .error-box.active{display:block;}
+  .result{display:none;}
+  .result.active{display:block;}
+  .analysis-badge{display:inline-block;padding:6px 14px;background:rgba(0,229,160,0.1);
+    border:1px solid rgba(0,229,160,0.3);border-radius:20px;font-size:12px;color:var(--accent);margin-bottom:16px;}
+  .paper-title-box{background:var(--surface);border:1px solid var(--border);
+    border-left:3px solid var(--accent);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .paper-title-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
+  .paper-title-text{font-family:var(--serif);font-size:15px;font-weight:300;color:var(--text);line-height:1.4;}
+  .evidence-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:12px 16px;margin-bottom:20px;font-size:11px;color:var(--muted);line-height:1.8;}
+  .evidence-box-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent2);margin-bottom:6px;}
+  .fsd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .fsd-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
+  .fsd-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;}
+  .fsd-card.f::before{background:var(--accent);}
+  .fsd-card.s::before{background:var(--accent2);}
+  .fsd-card.d::before{background:var(--amber);}
+  .fsd-axis-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;}
+  .fsd-card.f .fsd-axis-label{color:var(--accent);}
+  .fsd-card.s .fsd-axis-label{color:var(--accent2);}
+  .fsd-card.d .fsd-axis-label{color:var(--amber);}
+  .fsd-title{font-family:var(--serif);font-size:14px;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .fsd-status{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;margin-bottom:8px;}
+  .status-new{background:rgba(0,229,160,0.15);color:var(--accent);}
+  .status-same{background:rgba(255,92,92,0.15);color:var(--red);}
+  .status-expand{background:rgba(77,124,255,0.15);color:var(--accent2);}
+  .status-partial{background:rgba(245,166,35,0.15);color:var(--amber);}
+  .fsd-desc{font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .fsd-limit{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+  .fsd-limit-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px;}
+  .score-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .score-label{font-size:11px;width:14px;color:var(--muted);}
+  .score-bar-bg{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+  .score-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+  .score-bar-fill.f{background:var(--accent);}
+  .score-bar-fill.s{background:var(--accent2);}
+  .score-bar-fill.d{background:var(--amber);}
+  .score-val{font-size:11px;color:var(--muted);width:32px;text-align:right;}
+  .te-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+  .te-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .te-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+  .te-value{font-family:var(--serif);font-size:26px;font-weight:700;margin-bottom:6px;}
+  .te-value.t1{color:var(--accent);}
+  .te-value.t0{color:var(--red);}
+  .te-desc{font-size:11px;color:var(--muted);line-height:1.6;}
+  .te-next{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;}
+  .te-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+  .score-summary{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:0;}
+  .score-summary-title{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+  .score-total{font-family:var(--serif);font-size:32px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .score-total-label{font-size:11px;color:var(--muted);}
+  .verdict-box{border-radius:10px;padding:20px;margin-bottom:20px;}
+  .verdict-box.innovation{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);}
+  .verdict-box.analysis{background:rgba(107,114,128,0.1);border:1px solid rgba(107,114,128,0.3);}
+  .verdict-box.improvement{background:rgba(77,124,255,0.08);border:1px solid rgba(77,124,255,0.3);}
+  .verdict-box.paradigm{background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.3);}
+  .verdict-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;color:var(--muted);}
+  .verdict-title{font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:8px;}
+  .verdict-box.innovation .verdict-title{color:var(--accent);}
+  .verdict-box.analysis .verdict-title{color:var(--muted);}
+  .verdict-box.improvement .verdict-title{color:var(--accent2);}
+  .verdict-box.paradigm .verdict-title{color:var(--amber);}
+  .verdict-text{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .verdict-gap{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;}
+  .verdict-gap-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--amber);margin-bottom:4px;}
+  .verdict-next{font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px;}
+  .verdict-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+  .omega-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .omega-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .omega-value{font-family:var(--serif);font-size:22px;font-weight:700;margin-bottom:8px;}
+  .omega-value.yes{color:var(--accent);}
+  .omega-value.no{color:var(--red);}
+  .omega-value.potential{color:var(--amber);}
+  .omega-text{font-size:12px;color:var(--muted);line-height:1.8;}
+  .summary-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .summary-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .summary-text{font-size:12px;color:var(--muted);line-height:1.8;}
+  .rec-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .rec-label{font-size:10px;letter-spacing:0.15em;color:var(--accent2);text-transform:uppercase;margin-bottom:10px;}
+  .rec-item{font-size:12px;color:var(--muted);line-height:1.7;padding:6px 0;border-bottom:1px solid var(--border);}
+  .rec-item:last-child{border-bottom:none;}
+  .rec-num{color:var(--accent2);margin-right:8px;}
+  .download-btn{width:100%;padding:14px;background:rgba(77,124,255,0.1);color:var(--accent2);
+    border:1px solid rgba(77,124,255,0.3);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;margin-bottom:12px;}
+  .download-btn:hover{background:rgba(77,124,255,0.2);}
+  .reset-btn{width:100%;padding:12px;background:transparent;color:var(--muted);
+    border:1px solid var(--border);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;margin-bottom:40px;}
+  .reset-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+  .footer{text-align:center;padding-top:24px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--muted);line-height:1.8;}
+  .footer a{color:var(--accent);text-decoration:none;}
+  @media(max-width:600px){
+    .fsd-grid{grid-template-columns:1fr;}
+    .te-grid{grid-template-columns:1fr;}
+    .header h1{font-size:26px;}
+    .lang-toggle{top:12px;right:12px;}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+</head>
+<body>
+
+<!-- Language Toggle -->
+<div class="lang-toggle">
+  <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+  <button class="lang-btn" id="btnKO" onclick="setLang('ko')">한국어</button>
+</div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="header-tag" id="hTag">Structurology · v1.1 · Local Engine</div>
+    <h1>Paper <span id="hTitle">Structure Analyzer</span></h1>
+    <p id="hDesc">FSD Framework-based paper structure analyzer<br>Structure determines characteristics — not components.</p>
+    <div class="badges">
+      <span class="badge badge-f" id="badgeF">F — Force</span>
+      <span class="badge badge-s" id="badgeS">S — Scope</span>
+      <span class="badge badge-d" id="badgeD">D — Dimension</span>
+      <span class="badge badge-local" id="badgeLocal">⚡ No API Required</span>
+    </div>
+  </div>
+
+  <div class="counter-bar">
+    <div class="counter-item"><div class="counter-num" id="globalCount">—</div><div class="counter-label" id="cTotal">Total analyzed</div></div>
+    <div class="counter-divider"></div>
+    <div class="counter-item"><div class="counter-num" id="todayCount">—</div><div class="counter-label" id="cToday">Today</div></div>
+    <div class="counter-divider"></div>
+    <div class="counter-item"><div class="counter-num" id="myCount">—</div><div class="counter-label" id="cMine">Your analyses</div></div>
+  </div>
+
+  <div class="info-bar" id="infoBar">
+    <strong>⬡ Fully Local</strong> — No API key required. Upload a PDF and the Structurology v1.1 engine analyzes it directly in your browser.<br>
+    Analysis formula: <strong>I(A→B) = F · cos(θ) · D^α / r^β</strong> · T(A→B) = 1 if ΔI &gt; θ_threshold · Ω = Σ T(i→j)
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".pdf">
+    <div class="upload-icon">⬡</div>
+    <h3 id="uploadTitle">Drag & drop a PDF paper, or click to browse</h3>
+    <p id="uploadDesc">arXiv · Journals · Conferences · Patents — any PDF · no internet required</p>
+    <div class="file-name" id="fileName"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <button class="analyze-btn" id="analyzeBtn" disabled>⬡ &nbsp; <span id="analyzeBtnText">Start FSD Analysis</span></button>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Analyzing...</div>
+    <div class="loading-step" id="loadingStep">Reading PDF</div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="analysis-badge" id="analysisBadge">⬡ Analysis #—</div>
+    <div class="paper-title-box">
+      <div class="paper-title-label" id="lblPaper">Analyzed Paper</div>
+      <div class="paper-title-text" id="paperTitle">—</div>
+    </div>
+
+    <div class="evidence-box">
+      <div class="evidence-box-label" id="lblKeywords">Structurology Engine Detected Keywords</div>
+      <div id="evidenceText">—</div>
+    </div>
+
+    <div class="fsd-grid">
+      <div class="fsd-card f">
+        <div class="fsd-axis-label" id="fAxisLabel">F — Force</div>
+        <div class="fsd-title" id="fCardTitle">Mechanism Change</div>
+        <div class="fsd-status" id="fStatus">—</div>
+        <div class="fsd-desc" id="fDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label" id="fLimitLabel">Remaining Limits</div><div id="fLimit">—</div></div>
+        <div class="score-row"><span class="score-label">F</span><div class="score-bar-bg"><div class="score-bar-fill f" id="fBar" style="width:0%"></div></div><span class="score-val" id="fScore">0/100</span></div>
+      </div>
+      <div class="fsd-card s">
+        <div class="fsd-axis-label" id="sAxisLabel">S — Scope</div>
+        <div class="fsd-title" id="sCardTitle">Influence Range Change</div>
+        <div class="fsd-status" id="sStatus">—</div>
+        <div class="fsd-desc" id="sDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label" id="sLimitLabel">Remaining Limits</div><div id="sLimit">—</div></div>
+        <div class="score-row"><span class="score-label">S</span><div class="score-bar-bg"><div class="score-bar-fill s" id="sBar" style="width:0%"></div></div><span class="score-val" id="sScore">0/100</span></div>
+      </div>
+      <div class="fsd-card d">
+        <div class="fsd-axis-label" id="dAxisLabel">D — Dimension</div>
+        <div class="fsd-title" id="dCardTitle">Connection Space Change</div>
+        <div class="fsd-status" id="dStatus">—</div>
+        <div class="fsd-desc" id="dDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label" id="dLimitLabel">Remaining Limits</div><div id="dLimit">—</div></div>
+        <div class="score-row"><span class="score-label">D</span><div class="score-bar-bg"><div class="score-bar-fill d" id="dBar" style="width:0%"></div></div><span class="score-val" id="dScore">0/100</span></div>
+      </div>
+    </div>
+
+    <div class="te-grid">
+      <div class="te-card">
+        <div class="te-label" id="tLabel">T — Structural Transfer</div>
+        <div class="te-value" id="tValue">—</div>
+        <div class="te-desc" id="tDesc">—</div>
+        <div class="te-next"><div class="te-next-label" id="tNextLabel">To achieve T=1</div><div id="tNext">—</div></div>
+      </div>
+      <div class="score-summary">
+        <div class="score-summary-title" id="lblFSDScore">FSD Innovation Score</div>
+        <div class="score-total" id="totalScore">—</div>
+        <div class="score-total-label">/ 300</div>
+        <div style="margin-top:14px">
+          <div class="score-row" style="margin-bottom:6px"><span class="score-label">F</span><div class="score-bar-bg"><div class="score-bar-fill f" id="fBar2" style="width:0%"></div></div><span class="score-val" id="fScore2">0</span></div>
+          <div class="score-row" style="margin-bottom:6px"><span class="score-label">S</span><div class="score-bar-bg"><div class="score-bar-fill s" id="sBar2" style="width:0%"></div></div><span class="score-val" id="sScore2">0</span></div>
+          <div class="score-row"><span class="score-label">D</span><div class="score-bar-bg"><div class="score-bar-fill d" id="dBar2" style="width:0%"></div></div><span class="score-val" id="dScore2">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="omega-box">
+      <div class="omega-label" id="omegaLabel">Ω — Structural Emergence</div>
+      <div class="omega-value" id="omegaValue">—</div>
+      <div class="omega-text" id="omegaText">—</div>
+    </div>
+
+    <div class="verdict-box" id="verdictBox">
+      <div class="verdict-label" id="verdictLabel">Structurology Final Verdict</div>
+      <div class="verdict-title" id="verdictTitle">—</div>
+      <div class="verdict-text" id="verdictText">—</div>
+      <div class="verdict-gap">
+        <div class="verdict-gap-label" id="verdictGapLabel">Remaining Structural Gaps</div>
+        <div id="verdictGap">—</div>
+      </div>
+      <div class="verdict-next">
+        <div class="verdict-next-label" id="verdictNextLabel">Next Structural Step</div>
+        <div id="verdictNext">—</div>
+      </div>
+    </div>
+
+    <div class="rec-box">
+      <div class="rec-label" id="recLabel">Specific Recommendations for T=1</div>
+      <div id="recList">—</div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-label" id="summaryLabel">Structurological Interpretation</div>
+      <div class="summary-text" id="summaryText">—</div>
+    </div>
+
+    <button class="download-btn" onclick="downloadPDF()" id="downloadBtn">⬡ &nbsp; Save as PDF via Browser Print (Ctrl+P)</button>
+    <button class="reset-btn" onclick="resetAnalyzer()" id="resetBtn">⬡ &nbsp; Analyze Another Paper</button>
+  </div>
+
+  <div class="footer">
+    <div>Structurology — New Academic Framework v1.1</div>
+    <div>Conceived and developed by <strong>Changho Song</strong>, Founder of Velsanet</div>
+    <div>Local Engine · PDF.js · No API Required</div>
+    <div style="margin-top:8px"><a href="https://github.com/joa337/structurology" target="_blank">github.com/joa337/structurology</a></div>
+    <div style="margin-top:6px;font-size:10px;color:#333">Structure belongs to everyone — Structurology is an open framework.</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STRUCTUROLOGY LOCAL ENGINE v1.1  (Bilingual: EN / KO)
+// I(A→B) = F_A · cos(θ_AB) · D^α / r^β
+// T(A→B) = 1 if ΔI > θ_threshold
+// E = Σ T(i→j)
+// ============================================================
+
+let fileData = null;
+let currentLang = 'en';
+let lastResult  = null;   // store for re-render on lang switch
+
+const analyzeBtn   = document.getElementById('analyzeBtn');
+const fileInput    = document.getElementById('fileInput');
+const uploadZone   = document.getElementById('uploadZone');
+const fileNameSpan = document.getElementById('fileName');
+const errorBox     = document.getElementById('errorBox');
+const loadingDiv   = document.getElementById('loading');
+const resultDiv    = document.getElementById('result');
+
+// ── i18n strings ────────────────────────────────────────────
+const I18N = {
+  en: {
+    hTag: 'Structurology · v1.1 · Local Engine',
+    hTitle: 'Structure Analyzer',
+    hDesc: 'FSD Framework-based paper structure analyzer<br>Structure determines characteristics — not components.',
+    badgeF: 'F — Force',
+    badgeS: 'S — Scope',
+    badgeD: 'D — Dimension',
+    badgeLocal: '⚡ No API Required',
+    cTotal: 'Total analyzed',
+    cToday: 'Today',
+    cMine: 'Your analyses',
+    infoBar: '<strong>⬡ Fully Local</strong> — No API key required. Upload a PDF and the Structurology v1.1 engine analyzes it directly in your browser.<br>Analysis formula: <strong>I(A→B) = F · cos(θ) · D^α / r^β</strong> · T(A→B) = 1 if ΔI &gt; θ_threshold · Ω = Σ T(i→j)',
+    uploadTitle: 'Drag & drop a PDF paper, or click to browse',
+    uploadDesc: 'arXiv · Journals · Conferences · Patents — any PDF · no internet required',
+    analyzeBtnText: 'Start FSD Analysis',
+    loadingText: 'Analyzing...',
+    loadingStep: 'Reading PDF',
+    loadingStep2: 'Running Structurology FSD Analysis...',
+    loadingStep2b: 'Computing I(A→B) = F·cos(θ)·D^α/r^β',
+    lblPaper: 'Analyzed Paper',
+    lblKeywords: 'Structurology Engine Detected Keywords',
+    fAxisLabel: 'F — Force',
+    fCardTitle: 'Mechanism Change',
+    fLimitLabel: 'Remaining Limits',
+    sAxisLabel: 'S — Scope',
+    sCardTitle: 'Influence Range Change',
+    sLimitLabel: 'Remaining Limits',
+    dAxisLabel: 'D — Dimension',
+    dCardTitle: 'Connection Space Change',
+    dLimitLabel: 'Remaining Limits',
+    tLabel: 'T — Structural Transfer',
+    tNextLabel: 'To achieve T=1',
+    lblFSDScore: 'FSD Innovation Score',
+    omegaLabel: 'Ω — Structural Emergence',
+    verdictLabel: 'Structurology Final Verdict',
+    verdictGapLabel: 'Remaining Structural Gaps',
+    verdictNextLabel: 'Next Structural Step',
+    recLabel: 'Specific Recommendations for T=1',
+    summaryLabel: 'Structurological Interpretation',
+    downloadBtn: '⬡ \u00a0 Save as PDF via Browser Print (Ctrl+P)',
+    resetBtn: '⬡ \u00a0 Analyze Another Paper',
+    errorPDF: 'Please upload a PDF file',
+    errorNoPDF: 'Please upload a PDF first',
+    errorRead: 'Failed to read file',
+    errorDrop: 'Please drop a PDF file',
+    errorAnalysis: 'Analysis failed: ',
+    noKeywords: '(keywords auto-detected)',
+    unknownPaper: 'Unknown Paper',
+  },
+  ko: {
+    hTag: '구조학 · v1.1 · 로컬 엔진',
+    hTitle: '논문 구조 분석기',
+    hDesc: '구조학 FSD 프레임워크 기반 논문 구조 분석기<br>Structure determines characteristics — not components.',
+    badgeF: 'F — 힘 (Force)',
+    badgeS: 'S — 범위 (Scope)',
+    badgeD: 'D — 차원 (Dimension)',
+    badgeLocal: '⚡ API 불필요',
+    cTotal: '총 분석 수',
+    cToday: '오늘',
+    cMine: '내 분석',
+    infoBar: '<strong>⬡ 완전 로컬 실행</strong> — API 키 불필요. PDF를 업로드하면 브라우저 안에서 구조학 v1.1 엔진이 직접 분석합니다.<br>분석 기준: <strong>I(A→B) = F · cos(θ) · D^α / r^β</strong> · T(A→B) = 1 if ΔI &gt; θ_threshold · Ω = Σ T(i→j)',
+    uploadTitle: 'PDF 논문을 드래그하거나 클릭하세요',
+    uploadDesc: 'arXiv · 학술지 · 컨퍼런스 · 특허 — 어떤 PDF든 가능 · 인터넷 연결 불필요',
+    analyzeBtnText: '구조학 FSD 분석 시작',
+    loadingText: '분석 중...',
+    loadingStep: 'PDF 읽는 중',
+    loadingStep2: '구조학 FSD 분석 중...',
+    loadingStep2b: 'I(A→B) = F·cos(θ)·D^α/r^β 계산 중',
+    lblPaper: '분석 논문',
+    lblKeywords: '구조학 엔진 감지 키워드',
+    fAxisLabel: 'F — 힘 (Force)',
+    fCardTitle: '메커니즘의 변화',
+    fLimitLabel: '남은 한계',
+    sAxisLabel: 'S — 범위 (Scope)',
+    sCardTitle: '영향 범위의 변화',
+    sLimitLabel: '남은 한계',
+    dAxisLabel: 'D — 차원 (Dimension)',
+    dCardTitle: '연결 공간의 변화',
+    dLimitLabel: '남은 한계',
+    tLabel: 'T — 구조 전이 (Transfer)',
+    tNextLabel: 'T=1이 되려면',
+    lblFSDScore: 'FSD 혁신 점수',
+    omegaLabel: 'Ω — 구조적 창발 (Emergence)',
+    verdictLabel: '구조학 최종 판정',
+    verdictGapLabel: '남은 구조적 결함',
+    verdictNextLabel: '다음 구조적 단계',
+    recLabel: 'T=1을 위한 구체적 제안',
+    summaryLabel: '구조학적 해석',
+    downloadBtn: '⬡ \u00a0 브라우저 인쇄로 PDF 저장 (Ctrl+P)',
+    resetBtn: '⬡ \u00a0 다른 논문 분석',
+    errorPDF: 'PDF 파일을 업로드하세요',
+    errorNoPDF: 'PDF를 먼저 업로드하세요',
+    errorRead: '파일 읽기 실패',
+    errorDrop: 'PDF 파일을 드롭하세요',
+    errorAnalysis: '분석 실패: ',
+    noKeywords: '(키워드 자동 감지됨)',
+    unknownPaper: 'Unknown Paper',
+  }
+};
+
+// ── Language switcher ────────────────────────────────────────
+function setLang(lang) {
+  currentLang = lang;
+  document.getElementById('btnEN').classList.toggle('active', lang === 'en');
+  document.getElementById('btnKO').classList.toggle('active', lang === 'ko');
+  const t = I18N[lang];
+
+  // Static UI strings
+  document.getElementById('hTag').textContent         = t.hTag;
+  document.getElementById('hTitle').textContent       = t.hTitle;
+  document.getElementById('hDesc').innerHTML          = t.hDesc;
+  document.getElementById('badgeF').textContent       = t.badgeF;
+  document.getElementById('badgeS').textContent       = t.badgeS;
+  document.getElementById('badgeD').textContent       = t.badgeD;
+  document.getElementById('badgeLocal').textContent   = t.badgeLocal;
+  document.getElementById('cTotal').textContent       = t.cTotal;
+  document.getElementById('cToday').textContent       = t.cToday;
+  document.getElementById('cMine').textContent        = t.cMine;
+  document.getElementById('infoBar').innerHTML        = t.infoBar;
+  document.getElementById('uploadTitle').textContent  = t.uploadTitle;
+  document.getElementById('uploadDesc').textContent   = t.uploadDesc;
+  document.getElementById('analyzeBtnText').textContent = t.analyzeBtnText;
+
+  // Result labels (always update so they're correct when result shows)
+  document.getElementById('lblPaper').textContent     = t.lblPaper;
+  document.getElementById('lblKeywords').textContent  = t.lblKeywords;
+  document.getElementById('fAxisLabel').textContent   = t.fAxisLabel;
+  document.getElementById('fCardTitle').textContent   = t.fCardTitle;
+  document.getElementById('fLimitLabel').textContent  = t.fLimitLabel;
+  document.getElementById('sAxisLabel').textContent   = t.sAxisLabel;
+  document.getElementById('sCardTitle').textContent   = t.sCardTitle;
+  document.getElementById('sLimitLabel').textContent  = t.sLimitLabel;
+  document.getElementById('dAxisLabel').textContent   = t.dAxisLabel;
+  document.getElementById('dCardTitle').textContent   = t.dCardTitle;
+  document.getElementById('dLimitLabel').textContent  = t.dLimitLabel;
+  document.getElementById('tLabel').textContent       = t.tLabel;
+  document.getElementById('tNextLabel').textContent   = t.tNextLabel;
+  document.getElementById('lblFSDScore').textContent  = t.lblFSDScore;
+  document.getElementById('omegaLabel').textContent   = t.omegaLabel;
+  document.getElementById('verdictLabel').textContent = t.verdictLabel;
+  document.getElementById('verdictGapLabel').textContent = t.verdictGapLabel;
+  document.getElementById('verdictNextLabel').textContent = t.verdictNextLabel;
+  document.getElementById('recLabel').textContent     = t.recLabel;
+  document.getElementById('summaryLabel').textContent = t.summaryLabel;
+  document.getElementById('downloadBtn').textContent  = t.downloadBtn;
+  document.getElementById('resetBtn').textContent     = t.resetBtn;
+
+  // Re-render analysis content if available
+  if (lastResult) renderResult(lastResult, true);
+}
+
+// ── PDF text extraction ──────────────────────────────────────
+async function extractTextFromPDF(base64Data) {
+  const bin = atob(base64Data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+// ── Title extraction (improved) ──────────────────────────────
+function extractTitle(text) {
+  // Strip leading whitespace lines, grab first substantial line (10–300 chars)
+  const lines = text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length >= 10 && l.length <= 300);
+
+  // Prefer a line that looks like a title: not starting with numbers/dates,
+  // has mixed case or all-caps, and is in first 10 lines
+  for (const line of lines.slice(0, 10)) {
+    // Skip pure number lines, DOIs, URLs, author lines (short comma-separated)
+    if (/^\d/.test(line)) continue;
+    if (/^(doi|http|www|arxiv)/i.test(line)) continue;
+    if (line.length > 20) return line;
+  }
+  return lines[0] || I18N[currentLang].unknownPaper;
+}
+
+// ── Keyword dictionaries ─────────────────────────────────────
+const F_NEW_KW = [
+  'novel mechanism','new mechanism','fundamentally different','completely new','paradigm shift',
+  'new principle','breakthrough','replaces','abandons','unlike previous','instead of',
+  'active inference','free energy','generative model','new force',
+  'eliminates','structural change','first time','unprecedented','redefines',
+  'new operating principle','not optimization','beyond','transcends','inverts'
+];
+const F_EXPAND_KW = [
+  'extends','improves','enhances','augments','builds on','generalizes','scales',
+  'expands upon','advances','better than','outperforms','stronger','faster',
+  'more efficient','higher accuracy','increased','amplifies','significant improvement'
+];
+const F_PARTIAL_KW = [
+  'partially','some improvement','limited','constrained','in some cases',
+  'specific domain','narrow','restricted','preliminary','initial','proof of concept'
+];
+const F_LIMIT_KW = [
+  'limitation','future work','not yet','remains','challenge','open problem',
+  'cannot','does not','limited to','restricted to','only','still requires','lacks'
+];
+const S_GLOBAL_KW = [
+  'global','universal','general','all domains','any','cross-domain','foundation model',
+  'large-scale','planetary','ecosystem','world','society','civilization','across all',
+  'internet','network-wide','system-wide','end-to-end','comprehensive','holistic'
+];
+const S_EXPAND_KW = [
+  'broader','wider','new domain','multiple domains','cross-disciplinary','interdisciplinary',
+  'extends to','applicable to','beyond','new application','new field','new area',
+  'transfer','generalization','scalable','large','million','billion'
+];
+const S_LOCAL_KW = [
+  'specific','particular','single','narrow','limited scope','one domain','only for',
+  'restricted','specialized','niche','small-scale','local','individual'
+];
+const D_HIGH_KW = [
+  'face','polyhedral','topology','topological','manifold','hypercube','multi-dimensional',
+  'higher-dimensional','graph neural','hypergraph','simplicial','complex structure',
+  'face-to-face','lattice','crystal structure','3d structure','spatial','geometric deep',
+  'attention','transformer','self-attention','multi-head','pair representation',
+  'relational','structured','hierarchical','layered architecture','multi-layer'
+];
+const D_EDGE_KW = [
+  'graph','edge','connection','link','path','sequence','recurrent','chain',
+  'convolutional','network','node','vertex','adjacency','neighbor'
+];
+const D_POINT_KW = [
+  'weight','scalar','parameter','matrix','vector','linear','fully connected',
+  'dense layer','embedding','lookup','table','regression'
+];
+const T1_KW = [
+  'prototype','implemented','deployed','working system','demonstrated','validated',
+  'empirically','experiment','real-world','production','operational','built',
+  'actual system','working prototype','proof of concept implemented','we implement',
+  'we build','we deploy','we demonstrate','results show','our system achieves'
+];
+const T0_KW = [
+  'propose','suggest','framework','theoretical','conceptual','future work',
+  'we envision','hypothesize','believe','conjecture','in principle','could be',
+  'would enable','potential','vision','roadmap','discussion','we argue'
+];
+const OMEGA_KW = [
+  'emerges','emergent','unexpected','surprising','spontaneous','self-organizing',
+  'novel property','new capability','new behavior','collective','synergy',
+  'more than the sum','greater than','cannot be reduced','irreducible'
+];
+
+function countKeywords(text, kwList) {
+  const t = text.toLowerCase();
+  let count = 0; const found = [];
+  for (const kw of kwList) {
+    if (t.includes(kw.toLowerCase())) { count++; found.push(kw); }
+  }
+  return { count, found };
+}
+
+// ── Core analysis (language-aware output) ───────────────────
+function analyzeStructurology(text, lang) {
+  const L = lang || currentLang;
+  const sample = text.substring(0, 30000);
+  const isKO = L === 'ko';
+
+  // F
+  const fNew    = countKeywords(sample, F_NEW_KW);
+  const fExpand = countKeywords(sample, F_EXPAND_KW);
+  const fPartial= countKeywords(sample, F_PARTIAL_KW);
+  const fLimit  = countKeywords(sample, F_LIMIT_KW);
+
+  let fScore, fStatus, fStatusLabel, fDesc, fLimitText;
+  if (fNew.count >= 3) {
+    fStatus = 'new';
+    fStatusLabel = isKO ? '신규 창출 (NEW)' : 'NEW CREATION';
+    fScore = Math.min(95, 70 + fNew.count * 3);
+    const kws = '"' + fNew.found.slice(0,3).join('", "') + '"';
+    fDesc = isKO
+      ? `이 논문은 기존과 근본적으로 다른 새로운 메커니즘을 제안합니다. ${kws} 등의 표현이 F의 신규성을 나타냅니다. 기존 시스템의 작동 원리 자체를 교체하는 힘(Force)의 변화가 감지되었습니다.`
+      : `This paper proposes a fundamentally new mechanism. Keywords ${kws} signal novelty in F. A Force-level change that replaces the operating principle of existing systems has been detected.`;
+    fLimitText = fLimit.count > 0
+      ? (isKO
+        ? `구현 수준에서 한계가 남아 있습니다: "${fLimit.found.slice(0,2).join('", "')}" 등. 이론적 프레임워크가 실제 시스템으로 전이(T=1)되어야 합니다.`
+        : `Implementation-level limits remain: "${fLimit.found.slice(0,2).join('", "')}". The theoretical framework must transfer (T=1) into a real system.`)
+      : (isKO ? '현재 감지된 한계는 제한적입니다. 구체적 구현과 실험적 검증이 추가 필요합니다.'
+               : 'Detected limits are minimal. Concrete implementation and experimental validation are still needed.');
+  } else if (fExpand.count >= 3 || fNew.count >= 1) {
+    fStatus = 'expand';
+    fStatusLabel = isKO ? '기존 확장 (EXPAND)' : 'EXPAND';
+    fScore = Math.min(69, 42 + fExpand.count * 3 + fNew.count * 4);
+    const kws = '"' + fExpand.found.slice(0,3).join('", "') + '"';
+    fDesc = isKO
+      ? `기존 메커니즘을 유의미하게 확장했습니다. ${kws} 등의 표현이 F의 확장을 나타냅니다. 메커니즘 자체는 유지되지만 그 강도와 적용 범위가 증가했습니다.`
+      : `The existing mechanism has been meaningfully extended. ${kws} signal F-axis expansion. The mechanism itself is preserved but its intensity and application scope have grown.`;
+    fLimitText = isKO
+      ? '메커니즘의 근본적 교체 없이 파라미터 수준의 개선에 머물 위험이 있습니다. 새로운 F(힘)를 도입했는지 재검토가 필요합니다.'
+      : 'Risk of staying at parameter-level improvement without replacing the mechanism. Review whether a genuinely new F (force) has been introduced.';
+  } else if (fPartial.count >= 1) {
+    fStatus = 'partial';
+    fStatusLabel = isKO ? '부분 변화 (PARTIAL)' : 'PARTIAL';
+    fScore = Math.min(39, 22 + fPartial.count * 4);
+    fDesc = isKO
+      ? '제한된 영역에서 메커니즘의 부분적 변화가 감지됩니다. 특정 조건 또는 도메인에서만 새로운 힘이 작동하며, 일반화가 아직 이루어지지 않았습니다.'
+      : 'Partial mechanism change is detected in a limited domain. The new force operates only under specific conditions; generalization has not yet been achieved.';
+    fLimitText = isKO
+      ? '더 넓은 범위에서의 검증 없이 이 논문의 F 기여는 부분적으로만 인정됩니다.'
+      : 'Without broader validation, the F contribution of this paper is only partially recognized.';
+  } else {
+    fStatus = 'same';
+    fStatusLabel = isKO ? '동일 유지 (SAME)' : 'SAME';
+    fScore = Math.min(19, 5 + fExpand.count * 2);
+    fDesc = isKO
+      ? '기존 메커니즘의 최적화 또는 적용 범위 조정이 주된 기여입니다. 힘(Force)의 본질적 변화는 감지되지 않습니다.'
+      : 'The primary contribution is optimization or scope adjustment within existing mechanisms. No fundamental change in Force is detected.';
+    fLimitText = isKO
+      ? '메커니즘 수준의 혁신이 없으면 T=1에 도달하기 어렵습니다. F의 신규성을 위해 기존 시스템의 작동 원리를 어떻게 교체하는지 명시해야 합니다.'
+      : 'Without mechanism-level innovation, reaching T=1 is unlikely. Explicitly state how the operating principle of existing systems is being replaced.';
+  }
+
+  // S
+  const sGlobal = countKeywords(sample, S_GLOBAL_KW);
+  const sExpand = countKeywords(sample, S_EXPAND_KW);
+  const sLocal  = countKeywords(sample, S_LOCAL_KW);
+  let sScore, sStatus, sStatusLabel, sDesc, sLimitText;
+
+  if (sGlobal.count >= 3) {
+    sStatus = 'expand';
+    sStatusLabel = isKO ? '광역 확장 (EXPAND)' : 'GLOBAL EXPAND';
+    sScore = Math.min(95, 72 + sGlobal.count * 2);
+    const kws = '"' + sGlobal.found.slice(0,3).join('", "') + '"';
+    sDesc = isKO
+      ? `영향 범위가 전 지구적/범용 수준으로 확장되었습니다. ${kws} 등의 표현이 S의 광역성을 나타냅니다. 범위(Scope)의 법선벡터 방향이 글로벌 스케일을 향하고 있습니다.`
+      : `The influence scope has expanded to a global/universal level. ${kws} signal the breadth of S. The normal-vector of Scope is directed toward global scale.`;
+    sLimitText = isKO
+      ? '광역적 범위를 실제로 커버하는 구현과 검증이 아직 부족할 수 있습니다. 개구각(opening angle)을 실제로 정의하는 프로토콜이 필요합니다.'
+      : 'Implementation and validation that actually cover the global scope may still be lacking. A protocol that concretely defines the opening angle is needed.';
+  } else if (sExpand.count >= 2 || sGlobal.count >= 1) {
+    sStatus = 'expand';
+    sStatusLabel = isKO ? '범위 확장 (EXPAND)' : 'EXPAND';
+    sScore = Math.min(69, 44 + sExpand.count * 4 + sGlobal.count * 5);
+    const kws = '"' + sExpand.found.slice(0,3).join('", "') + '"';
+    sDesc = isKO
+      ? `기존보다 넓은 영역으로 범위가 확장되었습니다. ${kws} 등이 S의 확장을 지시합니다. 새로운 도메인 또는 응용 분야로의 범위 이동이 감지됩니다.`
+      : `The scope has expanded beyond the previous range. ${kws} signal S-axis extension. A scope shift toward new domains or application areas is detected.`;
+    sLimitText = isKO
+      ? '범위 확장의 방향성(법선벡터)이 명시적으로 정의되지 않았습니다. 어느 방향으로 영향이 확장되는지 구체화가 필요합니다.'
+      : 'The directional vector of scope expansion is not explicitly defined. Specify in which direction the influence is expanding.';
+  } else if (sLocal.count >= 3) {
+    sStatus = 'same';
+    sStatusLabel = isKO ? '좁은 범위 (SAME)' : 'NARROW (SAME)';
+    sScore = Math.min(19, 8 + Math.max(0, sExpand.count - sLocal.count) * 3);
+    sDesc = isKO
+      ? '영향 범위가 특정 도메인 또는 조건으로 제한됩니다. 범위(Scope)의 개구각이 좁아 글로벌 영향력이 낮습니다.'
+      : 'The influence scope is limited to a specific domain or condition. The opening angle of Scope is narrow, resulting in low global impact.';
+    sLimitText = isKO
+      ? '범위를 확장하려면 다른 도메인으로의 적용 가능성을 명시적으로 검증해야 합니다.'
+      : 'To expand scope, applicability to other domains must be explicitly validated.';
+  } else {
+    sStatus = 'partial';
+    sStatusLabel = isKO ? '부분 확장 (PARTIAL)' : 'PARTIAL';
+    sScore = Math.min(49, 28 + sExpand.count * 4);
+    sDesc = isKO
+      ? '제한적이지만 기존보다 넓은 범위를 커버하려는 시도가 있습니다. 범위의 방향성이 명확하지 않습니다.'
+      : 'There is an attempt to cover a broader scope than before, but in a limited way. The directional vector of scope is not clearly defined.';
+    sLimitText = isKO
+      ? '범위의 벡터 방향과 개구각을 명시적으로 정의해야 S의 기여가 구조학적으로 인정됩니다.'
+      : 'The vector direction and opening angle of scope must be explicitly defined for S\'s contribution to be structurologically recognized.';
+  }
+
+  // D
+  const dHigh  = countKeywords(sample, D_HIGH_KW);
+  const dEdge  = countKeywords(sample, D_EDGE_KW);
+  const dPoint = countKeywords(sample, D_POINT_KW);
+  let dScore, dStatus, dStatusLabel, dDesc, dLimitText;
+  let dLevel = 0;
+  if (dHigh.count >= 4) dLevel = 2;
+  else if (dHigh.count >= 1 || dEdge.count >= 3) dLevel = 1;
+
+  if (dLevel === 2) {
+    dStatus = 'new';
+    dStatusLabel = isKO ? '고차원 연결 (D≥2)' : 'HIGH-DIM (D≥2)';
+    dScore = Math.min(92, 68 + dHigh.count * 3);
+    const kws = '"' + dHigh.found.slice(0,3).join('", "') + '"';
+    dDesc = isKO
+      ? `면(Face) 수준 이상의 고차원 연결 구조가 감지됩니다. ${kws} 등이 D≥2의 가능성을 나타냅니다. D=2 이상에서 cos(θ_AB)가 안정적으로 정의되어 I(A→B)의 신뢰성이 높아집니다.`
+      : `High-dimensional connectivity at or above the Face level is detected. ${kws} suggest D≥2. Above D=2, cos(θ_AB) is stably defined, increasing the reliability of I(A→B).`;
+    dLimitText = isKO
+      ? '고차원 연결이 실제로 face-to-face 구조로 구현되었는지, 아니면 행렬 근사인지 확인이 필요합니다. 진정한 D=2 구조는 법선벡터가 자기 정의적이어야 합니다.'
+      : 'Verify whether the high-dimensional connectivity is actually implemented as a face-to-face structure or is merely a matrix approximation. A true D=2 structure requires a self-defining normal vector.';
+  } else if (dLevel === 1) {
+    dStatus = 'partial';
+    dStatusLabel = isKO ? '엣지 수준 연결 (D=1)' : 'EDGE-LEVEL (D=1)';
+    dScore = Math.min(59, 32 + dHigh.count * 5 + dEdge.count * 2);
+    const kws = '"' + dEdge.found.slice(0,3).join('", "') + '"';
+    dDesc = isKO
+      ? `엣지(선) 수준의 연결 구조가 주를 이룹니다. ${kws} 등이 D=1 구조를 나타냅니다. D=1에서는 연결이 방향을 가지지만 평면에 종속되어 고차원 창발에 한계가 있습니다.`
+      : `Edge-level connectivity dominates. ${kws} indicate D=1 structure. At D=1, connections have direction but are bound to a plane, limiting higher-dimensional emergence.`;
+    dLimitText = isKO
+      ? 'D=1 구조에서는 cos(θ_AB)의 안정성이 제한됩니다. ΔI가 임계값을 넘어 T=1에 도달하려면 D=2 이상으로의 구조 전환이 필요합니다.'
+      : 'At D=1, the stability of cos(θ_AB) is limited. Transitioning to D=2 or above is required for ΔI to exceed the threshold and reach T=1.';
+  } else {
+    dStatus = 'same';
+    dStatusLabel = isKO ? '점/꼭지점 연결 (D=0)' : 'POINT/VERTEX (D=0)';
+    dScore = Math.min(19, 8 + dEdge.count * 2);
+    const kws = '"' + dPoint.found.slice(0,2).join('", "') + '"';
+    dDesc = isKO
+      ? `기존 가중치/행렬 기반의 D=0~1 구조입니다. ${kws} 등이 D=0 연결을 나타냅니다. 현재 AI의 한계인 2D 행렬 구조 안에 머물러 있어 구조학적 차원 상승이 없습니다.`
+      : `A conventional weight/matrix-based D=0~1 structure. ${kws} indicate D=0 connectivity. The paper remains within the 2D matrix structure that characterizes current AI limitations; no dimensional elevation is detected.`;
+    dLimitText = isKO
+      ? '꼭지점 연결에서는 방향이 없어 외부에서 좌표계를 강제 부여해야 합니다. D=2 면 연결로 전환 시 cos(θ)의 안정성이 확보됩니다.'
+      : 'At vertex-level connectivity there is no intrinsic direction, requiring an externally imposed coordinate system. Transitioning to D=2 face connectivity secures the stability of cos(θ).';
+  }
+
+  // T
+  const t1Match = countKeywords(sample, T1_KW);
+  const t0Match = countKeywords(sample, T0_KW);
+  const tValue = (t1Match.count >= 3 && t1Match.count > t0Match.count * 0.5) ? 'T=1' : 'T=0';
+  let tDesc, tNext;
+  if (tValue === 'T=1') {
+    const kws = '"' + t1Match.found.slice(0,3).join('", "') + '"';
+    tDesc = isKO
+      ? `구현된 시스템이 존재하고 실험적 검증이 이루어졌습니다. ${kws} 등이 전이(Transfer)의 발생을 나타냅니다. ΔI가 임계값을 넘어 A의 구조적 특성이 B로 실제로 전이되었습니다.`
+      : `An implemented system exists and experimental validation has been conducted. ${kws} signal the occurrence of Transfer. ΔI has exceeded the threshold and A's structural properties have actually transferred to B.`;
+    tNext = isKO
+      ? 'T=1 달성 상태입니다. 다음 단계는 Ω(창발)가 실제로 발생했는지 검증하고, 전이된 특성이 새로운 도메인에서도 재현되는지 확인하는 것입니다.'
+      : 'T=1 has been achieved. The next step is to verify whether Ω (emergence) has actually occurred and confirm that the transferred properties are reproducible in new domains.';
+  } else {
+    const kws = '"' + t0Match.found.slice(0,3).join('", "') + '"';
+    tDesc = isKO
+      ? `이론적 프레임워크 제안 단계입니다. ${kws} 등의 표현이 아직 전이가 완료되지 않음을 나타냅니다. ΔI = I(A→B) - I(B→A)가 임계값 θ_threshold에 도달하지 못했습니다.`
+      : `The paper is at the stage of proposing a theoretical framework. ${kws} indicate that transfer has not yet completed. ΔI = I(A→B) - I(B→A) has not reached the threshold θ_threshold.`;
+    tNext = isKO
+      ? 'T=1을 위해 필요한 것: (1) 핵심 메커니즘의 프로토타입 구현, (2) 실제 데이터에서의 실험적 검증, (3) 기존 시스템 대비 구조적으로 불가능했던 새 특성의 출현 증명.'
+      : 'To reach T=1: (1) Implement a prototype of the core mechanism. (2) Conduct experimental validation on real data. (3) Prove the emergence of new properties that were structurally impossible in prior systems.';
+  }
+
+  // Ω
+  const omegaMatch = countKeywords(sample, OMEGA_KW);
+  let omegaValue, omegaText;
+  if (tValue === 'T=1' && fStatus === 'new' && omegaMatch.count >= 1) {
+    omegaValue = 'YES';
+    const kws = '"' + omegaMatch.found.slice(0,2).join('", "') + '"';
+    omegaText = isKO
+      ? `창발이 발생했습니다. E = Σ T(i→j) > 0. ${kws} 등이 기존 구성요소에 없던 새 특성의 출현을 나타냅니다. 이 특성은 구조가 만들어낸 선물(gift of structure)입니다.`
+      : `Emergence has occurred. E = Σ T(i→j) > 0. ${kws} signal the appearance of new properties absent from existing components — a gift of structure.`;
+  } else if (fScore >= 50 && dScore >= 50) {
+    omegaValue = 'POTENTIAL';
+    omegaText = isKO
+      ? 'Ω 창발의 가능성이 열려 있습니다. F와 D의 변화가 감지되지만 T=1이 아직 달성되지 않아 실제 창발은 확인되지 않았습니다. 구현과 검증이 이루어지면 Ω=YES가 될 가능성이 있습니다.'
+      : 'The possibility of Ω emergence is open. Changes in F and D are detected, but T=1 has not yet been achieved, so actual emergence has not been confirmed. If implemented and validated, Ω=YES is possible.';
+  } else {
+    omegaValue = 'NO';
+    omegaText = isKO
+      ? '현재 구조에서 창발은 감지되지 않습니다. F, D의 구조적 변화가 충분하지 않아 기존 구성요소의 합을 초과하는 새로운 특성이 나타나지 않습니다.'
+      : 'No emergence is detected in the current structure. Structural changes in F and D are insufficient; no new properties exceeding the sum of existing components have appeared.';
+  }
+
+  // Final verdict
+  const totalScore = fScore + sScore + dScore;
+  let verdictType, verdictTitle, verdictText, verdictGap, verdictNext;
+  const recommendations = [];
+
+  if (totalScore >= 220 && fStatus === 'new') {
+    verdictType = 'paradigm';
+    verdictTitle = isKO ? '패러다임 전환 (PARADIGM SHIFT)' : 'PARADIGM SHIFT';
+    verdictText = isKO
+      ? `이 논문은 F, S, D 세 축에서 모두 유의미한 구조적 변화를 보입니다. 기존 시스템의 작동 메커니즘을 교체하고(F=${fScore}), 영향 범위를 확장하며(S=${sScore}), 연결의 차원적 수준을 높이려(D=${dScore}) 합니다. 구조학적 관점에서 패러다임 전환의 요건을 갖추고 있습니다.`
+      : `This paper exhibits significant structural change on all three axes — F, S, and D. It replaces the operating mechanism of existing systems (F=${fScore}), expands the scope of influence (S=${sScore}), and elevates the dimensional level of connectivity (D=${dScore}). Structurologically, it meets the criteria for a paradigm shift.`;
+    verdictGap = isKO
+      ? `D 구현이 완전한 면(Face) 구조에 도달하지 않았다면 T=0 상태가 지속됩니다. 구조학적 수식 I(A→B) = F · cos(θ) · D^α / r^β 에서 D^α 항이 실제로 작동하는 시스템이 필요합니다.`
+      : `If the D implementation has not yet reached a full Face structure, T=0 persists. A system in which the D^α term of I(A→B) = F · cos(θ) · D^α / r^β actually operates is required.`;
+    verdictNext = isKO
+      ? '이 논문의 핵심 아이디어를 최소 프로토타입으로 구현하세요. 단 2-3개 노드로 구성된 작은 시스템에서라도 T=1을 달성하면 이 논문은 구조학적 혁신으로 인정됩니다.'
+      : 'Implement the core idea of this paper as a minimal prototype. Even in a small system with just 2–3 nodes, achieving T=1 would qualify this paper as a structurological innovation.';
+    if (isKO) {
+      recommendations.push('핵심 메커니즘의 최소 구현체(MVP) 제작 — 이론이 실제로 작동함을 증명');
+      recommendations.push('F의 변화를 정량적으로 측정하는 실험 설계 — 기존 메커니즘 대비 ΔI 측정');
+      recommendations.push('D=2 이상의 연결 구조를 프로토콜 수준에서 명시적으로 정의');
+      recommendations.push('Ω(창발) 검증 — 구현된 시스템에서 구성요소에 없던 새로운 특성이 출현하는지 관찰');
+    } else {
+      recommendations.push('Build a Minimum Viable Product (MVP) of the core mechanism — prove the theory actually works.');
+      recommendations.push('Design experiments that quantitatively measure the change in F — measure ΔI vs. the existing mechanism.');
+      recommendations.push('Explicitly define the D=2+ connectivity structure at the protocol level.');
+      recommendations.push('Verify Ω (emergence) — observe whether new properties absent from individual components appear in the implemented system.');
+    }
+  } else if (totalScore >= 150) {
+    verdictType = 'innovation';
+    verdictTitle = isKO ? '구조적 혁신 (STRUCTURAL INNOVATION)' : 'STRUCTURAL INNOVATION';
+    verdictText = isKO
+      ? `F, S, D 중 일부 축에서 유의미한 구조적 변화가 감지됩니다. 총점 ${totalScore}/300으로 기존 논문 대비 구조적 기여가 있습니다. 그러나 모든 축에서 동시적 변화가 이루어져야 진정한 패러다임 전환이 됩니다.`
+      : `Meaningful structural change is detected on some of the F, S, D axes. With a total score of ${totalScore}/300, this paper makes a structural contribution over prior work. However, simultaneous change across all axes is required for a true paradigm shift.`;
+    verdictGap = isKO
+      ? '세 축 중 일부가 SAME 또는 PARTIAL에 머물고 있습니다. 구조학적으로 F×S×D의 동시 변화가 없으면 부분적 혁신에 그칩니다.'
+      : 'Some axes remain at SAME or PARTIAL. Structurologically, without simultaneous change in F×S×D, the contribution remains a partial innovation.';
+    verdictNext = isKO
+      ? '가장 약한 축(점수가 낮은 축)을 집중적으로 강화하세요. 특히 D의 차원을 높이는 것이 T=1 달성의 핵심입니다.'
+      : 'Intensively strengthen the weakest axis (the one with the lowest score). Raising the dimensionality of D is especially critical for achieving T=1.';
+    if (isKO) {
+      recommendations.push('가장 낮은 점수의 FSD 축을 식별하고 그 축의 구조적 변화를 명시적으로 설계');
+      recommendations.push('F, S, D가 서로 어떻게 상호작용하는지 구체적으로 서술 — 각 축이 독립적이면 Ω가 발생하지 않음');
+      recommendations.push('기존 최고 성능 시스템과의 구조적 비교 — 파라미터 차이가 아닌 연결 구조의 차이를 명시');
+      recommendations.push('T=1을 위한 구체적 실험 계획 수립');
+    } else {
+      recommendations.push('Identify the lowest-scoring FSD axis and explicitly design structural change for that axis.');
+      recommendations.push('Concretely describe how F, S, and D interact — if each axis is independent, Ω cannot occur.');
+      recommendations.push('Provide a structural comparison with the current state-of-the-art — specify differences in connectivity structure, not parameters.');
+      recommendations.push('Establish a concrete experimental plan targeting T=1.');
+    }
+  } else if (totalScore >= 80) {
+    verdictType = 'improvement';
+    verdictTitle = isKO ? '점진적 개선 (INCREMENTAL IMPROVEMENT)' : 'INCREMENTAL IMPROVEMENT';
+    verdictText = isKO
+      ? `기존 구조 안에서의 개선이 주된 기여입니다. 총점 ${totalScore}/300으로 구조적 혁신보다는 최적화에 가깝습니다. F, S, D의 변화가 기존 패러다임의 틀 안에 머물러 있습니다.`
+      : `The primary contribution is improvement within existing structure. With a total score of ${totalScore}/300, this is closer to optimization than structural innovation. Changes in F, S, and D remain within the existing paradigm.`;
+    verdictGap = isKO
+      ? 'F(힘)의 본질적 변화 없이 성능 수치만 개선하는 것은 구조학적으로 T=0 상태를 유지합니다.'
+      : 'Improving performance metrics without an essential change in F (Force) maintains T=0 structurologically.';
+    verdictNext = isKO
+      ? '이 논문이 기존 시스템과 구조적으로 무엇이 다른지를 I(A→B) 수식 수준에서 명시하세요. 메커니즘 자체가 바뀌지 않으면 T=1은 불가능합니다.'
+      : 'Specify at the I(A→B) formula level what is structurally different from existing systems. If the mechanism itself does not change, T=1 is impossible.';
+    if (isKO) {
+      recommendations.push('기존 논문들과의 FSD 구조 비교표 작성 — 무엇이 구조적으로 다른지 명시');
+      recommendations.push('F(메커니즘)의 변화를 수식 수준에서 정의 — 파라미터가 아닌 원리의 차이');
+      recommendations.push('새로운 D 차원 구조를 도입하거나 기존 D를 높일 방법 탐색');
+      recommendations.push('좁은 도메인에서라도 T=1을 달성하는 최소 구현 시도');
+    } else {
+      recommendations.push('Create an FSD structural comparison table with prior papers — explicitly state what is structurally different.');
+      recommendations.push('Define the change in F (mechanism) at the formula level — differences in principle, not parameters.');
+      recommendations.push('Explore ways to introduce a new D-dimensional structure or elevate the existing D.');
+      recommendations.push('Attempt a minimal implementation that achieves T=1 even in a narrow domain.');
+    }
+  } else {
+    verdictType = 'analysis';
+    verdictTitle = isKO ? '분석/정리 논문 (ANALYSIS PAPER)' : 'ANALYSIS PAPER';
+    verdictText = isKO
+      ? `주로 기존 연구의 분석, 정리, 또는 표준화에 기여하는 논문입니다. 총점 ${totalScore}/300으로 구조적 혁신보다는 지식 정리에 가깝습니다. 구조학적으로 F, S, D의 변화가 감지되지 않습니다.`
+      : `This paper primarily contributes through analysis, synthesis, or standardization of existing research. With a total score of ${totalScore}/300, it is closer to knowledge organization than structural innovation. No change in F, S, or D is structurologically detected.`;
+    verdictGap = isKO
+      ? '새로운 메커니즘, 새로운 범위, 새로운 차원 구조 중 어느 것도 명확하게 제시되지 않습니다.'
+      : 'None of the three — new mechanism, new scope, new dimensional structure — is clearly presented.';
+    verdictNext = isKO
+      ? '이 논문의 가치는 지식 정리에 있습니다. 만약 구조적 혁신을 목표로 한다면 F, S, D 중 하나라도 근본적으로 새로운 것을 도입하는 후속 연구가 필요합니다.'
+      : 'The value of this paper lies in knowledge organization. If structural innovation is the goal, follow-up research introducing something fundamentally new in at least one of F, S, or D is needed.';
+    if (isKO) {
+      recommendations.push('이 논문이 다루는 기존 연구들의 FSD 구조를 매핑 — 기존의 구조적 한계 식별');
+      recommendations.push('식별된 한계를 해결하는 새로운 F(메커니즘) 제안');
+      recommendations.push('기존 논문들이 커버하지 못하는 S(범위)를 정의');
+      recommendations.push('후속 연구에서 D=2 이상의 구조를 실험적으로 검증하는 계획 수립');
+    } else {
+      recommendations.push('Map the FSD structure of existing papers covered in this work — identify their structural limitations.');
+      recommendations.push('Propose a new F (mechanism) that addresses the identified limitations.');
+      recommendations.push('Define an S (scope) that existing papers have not covered.');
+      recommendations.push('Develop a plan to experimentally validate a D=2+ structure in follow-up research.');
+    }
+  }
+
+  // Evidence keywords summary
+  const allFound = [
+    ...fNew.found.slice(0,2), ...fExpand.found.slice(0,1),
+    ...sGlobal.found.slice(0,2), ...sExpand.found.slice(0,1),
+    ...dHigh.found.slice(0,2), ...t1Match.found.slice(0,2), ...omegaMatch.found.slice(0,1)
+  ].filter((v, i, a) => a.indexOf(v) === i).slice(0, 12);
+
+  const title = extractTitle(text);
+
+  // Summary
+  const summary = isKO
+    ? `구조학 v1.1 로컬 엔진 분석 결과 — 총점 ${totalScore}/300. F(힘): ${fStatusLabel}(${fScore}점) — ${fStatus === 'new' ? '메커니즘 자체가 교체됨' : fStatus === 'expand' ? '기존 메커니즘이 확장됨' : '제한적 변화'}. S(범위): ${sStatusLabel}(${sScore}점) — ${sGlobal.count >= 3 ? '전 지구적 범위' : sExpand.count >= 2 ? '범위가 확장됨' : '제한된 범위'}. D(차원): ${dStatusLabel}(${dScore}점) — ${dLevel >= 2 ? 'D=2 고차원 연결 감지' : dLevel === 1 ? 'D=1 엣지 수준 연결' : 'D=0 점/행렬 구조'}. 전이(T): ${tValue}. 창발(Ω): ${omegaValue}. I(A→B) = F · cos(θ) · D^α / r^β 수식 기반 구조학적 판정: ${verdictTitle}.`
+    : `Structurology v1.1 Local Engine — Total Score ${totalScore}/300. F (Force): ${fStatusLabel} (${fScore}) — ${fStatus === 'new' ? 'mechanism itself replaced' : fStatus === 'expand' ? 'existing mechanism extended' : 'limited change'}. S (Scope): ${sStatusLabel} (${sScore}) — ${sGlobal.count >= 3 ? 'global scale' : sExpand.count >= 2 ? 'scope expanded' : 'limited scope'}. D (Dimension): ${dStatusLabel} (${dScore}) — ${dLevel >= 2 ? 'D=2 high-dimensional connectivity detected' : dLevel === 1 ? 'D=1 edge-level connectivity' : 'D=0 point/matrix structure'}. Transfer (T): ${tValue}. Emergence (Ω): ${omegaValue}. Structurological verdict based on I(A→B) = F · cos(θ) · D^α / r^β: ${verdictTitle}.`;
+
+  return {
+    title,
+    evidenceKeywords: allFound.length > 0 ? allFound.join(' · ') : I18N[L].noKeywords,
+    f: { status: fStatus, statusLabel: fStatusLabel, desc: fDesc, limitation: fLimitText, score: fScore },
+    s: { status: sStatus, statusLabel: sStatusLabel, desc: sDesc, limitation: sLimitText, score: sScore },
+    d: { status: dStatus, statusLabel: dStatusLabel, desc: dDesc, limitation: dLimitText, score: dScore },
+    t: { value: tValue, desc: tDesc, next: tNext },
+    omega: { value: omegaValue, text: omegaText },
+    verdict: { type: verdictType, title: verdictTitle, text: verdictText, gap: verdictGap, next: verdictNext },
+    recommendations,
+    summary
+  };
+}
+
+// ── Render result ────────────────────────────────────────────
+function renderResult(r, langSwitch) {
+  if (!langSwitch) {
+    loadingDiv.classList.remove('active');
+    resultDiv.classList.add('active');
+    analyzeBtn.disabled = false;
+  }
+
+  document.getElementById('paperTitle').textContent = r.title;
+  document.getElementById('evidenceText').textContent = r.evidenceKeywords;
+
+  ['f','s','d'].forEach(axis => {
+    const d = r[axis];
+    const statusEl = document.getElementById(axis + 'Status');
+    if (statusEl) {
+      statusEl.textContent = d.statusLabel;
+      statusEl.className = 'fsd-status status-' + d.status;
+    }
+    document.getElementById(axis + 'Desc').textContent = d.desc;
+    document.getElementById(axis + 'Limit').textContent = d.limitation;
+    const bar  = document.getElementById(axis + 'Bar');
+    const bar2 = document.getElementById(axis + 'Bar2');
+    const scoreEl  = document.getElementById(axis + 'Score');
+    const score2El = document.getElementById(axis + 'Score2');
+    if (bar)  setTimeout(() => bar.style.width = d.score + '%', 200);
+    if (bar2) setTimeout(() => bar2.style.width = d.score + '%', 200);
+    if (scoreEl)  scoreEl.textContent  = d.score + '/100';
+    if (score2El) score2El.textContent = d.score;
+  });
+
+  const total = r.f.score + r.s.score + r.d.score;
+  document.getElementById('totalScore').textContent = total;
+
+  const tv = document.getElementById('tValue');
+  tv.textContent = r.t.value;
+  tv.className = 'te-value ' + (r.t.value === 'T=1' ? 't1' : 't0');
+  document.getElementById('tDesc').textContent = r.t.desc;
+  document.getElementById('tNext').textContent = r.t.next;
+
+  const ov = document.getElementById('omegaValue');
+  ov.textContent = 'Ω = ' + r.omega.value;
+  ov.className = 'omega-value ' + r.omega.value.toLowerCase();
+  document.getElementById('omegaText').textContent = r.omega.text;
+
+  const vb = document.getElementById('verdictBox');
+  vb.className = 'verdict-box ' + r.verdict.type;
+  document.getElementById('verdictTitle').textContent = r.verdict.title;
+  document.getElementById('verdictText').textContent  = r.verdict.text;
+  document.getElementById('verdictGap').textContent   = r.verdict.gap;
+  document.getElementById('verdictNext').textContent  = r.verdict.next;
+
+  const recList = document.getElementById('recList');
+  recList.innerHTML = '';
+  r.recommendations.forEach((rec, i) => {
+    const div = document.createElement('div');
+    div.className = 'rec-item';
+    div.innerHTML = '<span class="rec-num">' + (i+1) + '.</span>' + rec;
+    recList.appendChild(div);
+  });
+
+  document.getElementById('summaryText').textContent = r.summary;
+}
+
+// ── File upload ──────────────────────────────────────────────
+function handleFile(file) {
+  const t = I18N[currentLang];
+  if (!file || file.type !== 'application/pdf') { showError(t.errorPDF); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    fileData = e.target.result.split(',')[1];
+    fileNameSpan.textContent = '⬡ ' + file.name;
+    fileNameSpan.style.display = 'block';
+    errorBox.classList.remove('active');
+    analyzeBtn.disabled = false;
+  };
+  reader.onerror = () => showError(t.errorRead);
+  reader.readAsDataURL(file);
+}
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    handleFile(file);
+    const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
+  } else showError(I18N[currentLang].errorDrop);
+});
+
+analyzeBtn.addEventListener('click', analyze);
+
+async function analyze() {
+  const t = I18N[currentLang];
+  if (!fileData) { showError(t.errorNoPDF); return; }
+
+  errorBox.classList.remove('active');
+  resultDiv.classList.remove('active');
+  loadingDiv.classList.add('active');
+  analyzeBtn.disabled = true;
+
+  const loadingText = document.getElementById('loadingText');
+  const loadingStep = document.getElementById('loadingStep');
+
+  try {
+    loadingText.textContent = currentLang === 'ko' ? 'PDF 텍스트 추출 중...' : 'Extracting PDF text...';
+    loadingStep.textContent = currentLang === 'ko' ? 'PDF.js 로컬 처리 중 (인터넷 불필요)' : 'PDF.js local processing (no internet needed)';
+    const text = await extractTextFromPDF(fileData);
+
+    loadingText.textContent = t.loadingStep2;
+    loadingStep.textContent = t.loadingStep2b;
+
+    await new Promise(r => setTimeout(r, 300));
+
+    lastResult = analyzeStructurology(text, currentLang);
+    incrementCounter();
+    renderResult(lastResult);
+
+  } catch (err) {
+    loadingDiv.classList.remove('active');
+    showError(t.errorAnalysis + err.message);
+    analyzeBtn.disabled = false;
+  }
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('active');
+  setTimeout(() => errorBox.classList.remove('active'), 5000);
+}
+
+// ── Counters ─────────────────────────────────────────────────
+const TODAY_KEY = 'structurology-today-' + new Date().toISOString().slice(0,10);
+function loadCounters() {
+  document.getElementById('globalCount').textContent = localStorage.getItem('structurology_global') || '0';
+  document.getElementById('todayCount').textContent  = localStorage.getItem(TODAY_KEY) || '0';
+  document.getElementById('myCount').textContent     = localStorage.getItem('structurology_mine') || '0';
+}
+function incrementCounter() {
+  const today = (parseInt(localStorage.getItem(TODAY_KEY)||'0') + 1);
+  localStorage.setItem(TODAY_KEY, today);
+  document.getElementById('todayCount').textContent = today;
+  const mine = (parseInt(localStorage.getItem('structurology_mine')||'0') + 1);
+  localStorage.setItem('structurology_mine', mine);
+  document.getElementById('myCount').textContent = mine;
+  const global = (parseInt(localStorage.getItem('structurology_global')||'0') + 1);
+  localStorage.setItem('structurology_global', global);
+  document.getElementById('globalCount').textContent = global;
+  document.getElementById('analysisBadge').textContent = '⬡ Analysis #' + mine;
+}
+
+function downloadPDF() { window.print(); }
+function resetAnalyzer() {
+  fileData = null;
+  lastResult = null;
+  fileInput.value = '';
+  fileNameSpan.style.display = 'none';
+  resultDiv.classList.remove('active');
+  errorBox.classList.remove('active');
+  analyzeBtn.disabled = true;
+}
+
+window.onload = () => { loadCounters(); };
+</script>
+</body>
+</html>

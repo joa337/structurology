@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구조학 논문 분석기</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: rgba(255,255,255,0.08);
+    --accent: #00e5a0;
+    --accent2: #4d7cff;
+    --amber: #f5a623;
+    --red: #ff5c5c;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .header-tag {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .header h1 {
+    font-family: var(--serif);
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .header h1 span { color: var(--accent); font-style: italic; }
+
+  .header p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .fsd-badges {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-f { background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.3); color: var(--accent); }
+  .badge-s { background: rgba(77,124,255,0.1); border: 1px solid rgba(77,124,255,0.3); color: var(--accent2); }
+  .badge-d { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); color: var(--amber); }
+
+  /* 논문 선택 탭 */
+  .paper-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .paper-tab {
+    flex: 1;
+    min-width: 200px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+
+  .paper-tab:hover {
+    border-color: rgba(0,229,160,0.3);
+  }
+
+  .paper-tab.active {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.05);
+  }
+
+  .tab-num {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .tab-title {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .tab-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  /* 결과 패널 */
+  .paper-title-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+
+  .paper-title-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .paper-title-text {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 300;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .fsd-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .fsd-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fsd-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .fsd-card.f::before { background: var(--accent); }
+  .fsd-card.s::before { background: var(--accent2); }
+  .fsd-card.d::before { background: var(--amber); }
+
+  .fsd-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .fsd-card.f .fsd-label { color: var(--accent); }
+  .fsd-card.s .fsd-label { color: var(--accent2); }
+  .fsd-card.d .fsd-label { color: var(--amber); }
+
+  .fsd-title {
+    font-family: var(--serif);
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .fsd-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+
+  .status-new { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .status-same { background: rgba(255,92,92,0.15); color: var(--red); }
+  .status-expand { background: rgba(77,124,255,0.15); color: var(--accent2); }
+  .status-partial { background: rgba(245,166,35,0.15); color: var(--amber); }
+
+  .fsd-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  .te-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .te-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+
+  .te-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .te-value {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .te-value.t1 { color: var(--accent); }
+  .te-value.t0 { color: var(--red); }
+
+  .te-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .score-label { font-size: 11px; width: 14px; color: var(--muted); }
+
+  .score-bar-bg {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s ease;
+  }
+
+  .score-bar-fill.f { background: var(--accent); }
+  .score-bar-fill.s { background: var(--accent2); }
+  .score-bar-fill.d { background: var(--amber); }
+
+  .score-val { font-size: 11px; color: var(--muted); width: 28px; text-align: right; }
+
+  .verdict-box {
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .verdict-box.innovation { background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.3); }
+  .verdict-box.analysis { background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.3); }
+  .verdict-box.improvement { background: rgba(77,124,255,0.08); border: 1px solid rgba(77,124,255,0.3); }
+  .verdict-box.paradigm { background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.3); }
+
+  .verdict-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; color: var(--muted); }
+
+  .verdict-title { font-family: var(--serif); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+
+  .verdict-box.innovation .verdict-title { color: var(--accent); }
+  .verdict-box.analysis .verdict-title { color: var(--muted); }
+  .verdict-box.improvement .verdict-title { color: var(--accent2); }
+  .verdict-box.paradigm .verdict-title { color: var(--amber); }
+
+  .verdict-text { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  .summary-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+
+  .summary-label { font-size: 10px; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+
+  .summary-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
+
+  /* 비교 뷰 */
+  .compare-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(77,124,255,0.1);
+    color: var(--accent2);
+    border: 1px solid rgba(77,124,255,0.3);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+  }
+
+  .compare-btn:hover { background: rgba(77,124,255,0.15); }
+
+  .compare-view {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .compare-view.active { display: block; }
+
+  .compare-title {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .compare-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: start;
+  }
+
+  .compare-axis {
+    font-size: 11px;
+    color: var(--muted);
+    padding-top: 4px;
+  }
+
+  .compare-cell {
+    font-size: 11px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+
+  .cell-bad { background: rgba(255,92,92,0.1); color: var(--red); }
+  .cell-good { background: rgba(0,229,160,0.1); color: var(--accent); }
+  .cell-mid { background: rgba(245,166,35,0.1); color: var(--amber); }
+
+  .compare-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .compare-header-cell {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    .fsd-grid { grid-template-columns: 1fr; }
+    .te-grid { grid-template-columns: 1fr; }
+    .header h1 { font-size: 26px; }
+    .paper-tab { min-width: 140px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-tag">Structurology · 구조학</div>
+    <h1>논문 <span>구조 분석기</span></h1>
+    <p>구조학의 FSD 프레임으로 논문의 혁신 구조를 분석합니다</p>
+    <div class="fsd-badges">
+      <span class="badge badge-f">F — 힘 (Force)</span>
+      <span class="badge badge-s">S — 범위 (Scope)</span>
+      <span class="badge badge-d">D — 차원 (Dimension)</span>
+    </div>
+  </div>
+
+  <!-- 논문 선택 -->
+  <div class="paper-tabs">
+    <div class="paper-tab active" onclick="showPaper(0)">
+      <div class="tab-num">논문 #1</div>
+      <div class="tab-title">Does RLVR Really Incentivize Reasoning in LLMs?</div>
+      <span class="tab-badge" style="background:rgba(107,114,128,0.2);color:var(--muted)">분석 논문</span>
+    </div>
+    <div class="paper-tab" onclick="showPaper(1)">
+      <div class="tab-num">논문 #2</div>
+      <div class="tab-title">Quiet-STaR: LMs Can Teach Themselves to Think</div>
+      <span class="tab-badge" style="background:rgba(0,229,160,0.15);color:var(--accent)">구조적 혁신</span>
+    </div>
+  </div>
+
+  <!-- 비교 버튼 -->
+  <button class="compare-btn" onclick="toggleCompare()">⬡ 두 논문 구조학 비교 보기</button>
+
+  <!-- 비교 뷰 -->
+  <div class="compare-view" id="compareView">
+    <div class="compare-title">FSD 구조학 비교</div>
+    <div class="compare-header">
+      <div></div>
+      <div class="compare-header-cell" style="background:rgba(77,124,255,0.1);color:var(--accent2)">논문 #1 — RLVR</div>
+      <div class="compare-header-cell" style="background:rgba(0,229,160,0.1);color:var(--accent)">논문 #2 — Quiet-STaR</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-axis">F (힘)</div>
+      <div class="compare-cell cell-bad">기존 RL 힘 동일. 새로움 없음.</div>
+      <div class="compare-cell cell-good">내재적 추론 F 신규 생성. 모든 토큰에 작용.</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-axis">S (범위)</div>
+      <div class="compare-cell cell-mid">S 축소 현상 발견. 분석적 관찰.</div>
+      <div class="compare-cell cell-good">QA → 모든 텍스트. 범위 획기적 확장.</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-axis">D (차원)</div>
+      <div class="compare-cell cell-bad">2D 행렬 구조 불변. Face 없음.</div>
+      <div class="compare-cell cell-good">think/talk 레이어 분리. D 부분 확장.</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-axis">T (전이)</div>
+      <div class="compare-cell cell-bad">T = 0. 새 구조 전이 없음.</div>
+      <div class="compare-cell cell-good">T = 1. 새 구조 → 새 특성 창발.</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-axis">판정</div>
+      <div class="compare-cell" style="background:rgba(107,114,128,0.15);color:var(--muted)">분석 논문 — 혁신 없음, 통찰 있음</div>
+      <div class="compare-cell cell-good">구조적 혁신 — F·S·D 모두 변화</div>
+    </div>
+  </div>
+
+  <!-- 논문 #1 결과 -->
+  <div id="paper0">
+    <div class="paper-title-box">
+      <div class="paper-title-label">분석 논문 #1</div>
+      <div class="paper-title-text">Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?</div>
+    </div>
+
+    <div class="fsd-grid">
+      <div class="fsd-card f">
+        <div class="fsd-label">F — Force · 힘</div>
+        <div class="fsd-title">힘의 변화</div>
+        <span class="fsd-status status-same">기존 동일</span>
+        <div class="fsd-desc">RLVR이 사용하는 강화학습의 힘 자체는 기존 RL과 동일합니다. 보상 신호의 종류(검증 가능한 보상)가 다를 뿐, 새로운 내재적 힘을 만들어내지 않습니다. F는 변하지 않았습니다.</div>
+      </div>
+      <div class="fsd-card s">
+        <div class="fsd-label">S — Scope · 범위</div>
+        <div class="fsd-title">범위의 변화</div>
+        <span class="fsd-status status-partial">부분 변화</span>
+        <div class="fsd-desc">이 논문의 핵심 발견은 RLVR이 S(범위)를 오히려 축소시킨다는 것입니다. pass@k가 클 때 Base가 RLVR을 앞서는 현상이 S 축소를 증명합니다. 새로운 S를 만든 것이 아니라 기존 S의 변화를 관찰했습니다.</div>
+      </div>
+      <div class="fsd-card d">
+        <div class="fsd-label">D — Dimension · 차원</div>
+        <div class="fsd-title">차원의 변화</div>
+        <span class="fsd-status status-same">기존 동일</span>
+        <div class="fsd-desc">2D 행렬(Vertex 구조) 기반의 차원은 전혀 변하지 않았습니다. Face 구조로의 전환은 없으며, RLVR은 기존 차원 안에서 확률 분포만 조정합니다. D는 완전히 불변입니다.</div>
+      </div>
+    </div>
+
+    <div class="te-grid">
+      <div class="te-card">
+        <div class="te-label">T — Transfer · 사상 전이</div>
+        <div class="te-value t0">T = 0</div>
+        <div class="te-desc">새로운 구조적 특성의 전이가 일어나지 않았습니다. RLVR은 Base Model의 구조 안에서 효율만 조정할 뿐, 새로운 추론 구조를 만들지 못합니다. Distillation만 T=1입니다.</div>
+      </div>
+      <div class="te-card">
+        <div class="te-label">FSD 혁신 스코어</div>
+        <div style="margin-top:8px">
+          <div class="score-row">
+            <span class="score-label">F</span>
+            <div class="score-bar-bg"><div class="score-bar-fill f" style="width:10%"></div></div>
+            <span class="score-val">10</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">S</span>
+            <div class="score-bar-bg"><div class="score-bar-fill s" style="width:40%"></div></div>
+            <span class="score-val">40</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">D</span>
+            <div class="score-bar-bg"><div class="score-bar-fill d" style="width:5%"></div></div>
+            <span class="score-val">5</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict-box analysis">
+      <div class="verdict-label">구조학 최종 판정</div>
+      <div class="verdict-title">분석 논문 — 혁신 없음, 통찰 있음</div>
+      <div class="verdict-text">F·D는 변하지 않았고 S의 축소 현상만 새롭게 발견했습니다. 구조적 혁신이 없는 분석 논문입니다. 그러나 "왜 RLVR이 한계를 가지는가"를 실증적으로 규명한 점에서 중요한 통찰을 제공합니다. 구조학적으로 보면 이 논문은 기존 구조(RLVR)의 S 축소라는 구조적 결함을 발견했지만, 그것을 해결할 새로운 구조를 제시하지는 못했습니다.</div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-label">구조학적 해석</div>
+      <div class="summary-text">RLVR은 F·D를 그대로 두고 S(범위)만 좁히는 방식으로 작동합니다. 이는 구조학의 핵심 명제 "구조가 특성을 결정한다"에서 볼 때, 구조를 바꾸지 않았으므로 근본적으로 새로운 특성이 창발할 수 없습니다. 6개의 서로 다른 RL 알고리즘이 모두 유사한 결과를 보인 것도 이 때문입니다. 알고리즘이 달라도 FSD 구조가 같으면 결과는 같습니다. Distillation이 다른 이유는 T=1 — 교사 모델의 구조가 실제로 학생 모델로 전이되기 때문입니다.</div>
+    </div>
+  </div>
+
+  <!-- 논문 #2 결과 -->
+  <div id="paper1" style="display:none">
+    <div class="paper-title-box">
+      <div class="paper-title-label">분석 논문 #2</div>
+      <div class="paper-title-text">Quiet-STaR: Language Models Can Teach Themselves to Think Before Speaking</div>
+    </div>
+
+    <div class="fsd-grid">
+      <div class="fsd-card f">
+        <div class="fsd-label">F — Force · 힘</div>
+        <div class="fsd-title">힘의 변화</div>
+        <span class="fsd-status status-new">신규 창출</span>
+        <div class="fsd-desc">모든 토큰 위치에서 내재적 추론(rationale)을 생성하는 새로운 힘을 만들었습니다. 기존 STaR이 QA 정답에서만 힘을 얻었다면, Quiet-STaR은 임의 텍스트 예측 자체에서 힘을 얻습니다. F가 새롭게 창출되었습니다.</div>
+      </div>
+      <div class="fsd-card s">
+        <div class="fsd-label">S — Scope · 범위</div>
+        <div class="fsd-title">범위의 변화</div>
+        <span class="fsd-status status-expand">획기적 확장</span>
+        <div class="fsd-desc">STaR의 범위가 QA 데이터셋에 한정됐다면, Quiet-STaR은 인터넷 텍스트 전체로 S를 확장했습니다. "언어 모델링 자체가 추론 학습의 장"이라는 패러다임 전환입니다. S가 획기적으로 확장되었습니다.</div>
+      </div>
+      <div class="fsd-card d">
+        <div class="fsd-label">D — Dimension · 차원</div>
+        <div class="fsd-title">차원의 변화</div>
+        <span class="fsd-status status-partial">부분 확장</span>
+        <div class="fsd-desc">Think(내부 추론)와 Talk(출력) 레이어를 분리하는 새로운 차원을 추가했습니다. Mixing Head가 두 차원을 연결합니다. 완전한 Face 구조는 아니지만 2D 행렬 위에 추론 레이어를 얹는 방향으로 D가 부분 확장되었습니다.</div>
+      </div>
+    </div>
+
+    <div class="te-grid">
+      <div class="te-card">
+        <div class="te-label">T — Transfer · 사상 전이</div>
+        <div class="te-value t1">T = 1</div>
+        <div class="te-desc">새로운 구조(내재적 추론 레이어)가 실제로 zero-shot 성능 향상으로 전이됩니다. GSM8K 5.9%→10.9%, CommonsenseQA 36.3%→47.2%. 파인튜닝 없이도 새 특성이 창발했습니다.</div>
+      </div>
+      <div class="te-card">
+        <div class="te-label">FSD 혁신 스코어</div>
+        <div style="margin-top:8px">
+          <div class="score-row">
+            <span class="score-label">F</span>
+            <div class="score-bar-bg"><div class="score-bar-fill f" style="width:82%"></div></div>
+            <span class="score-val">82</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">S</span>
+            <div class="score-bar-bg"><div class="score-bar-fill s" style="width:90%"></div></div>
+            <span class="score-val">90</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">D</span>
+            <div class="score-bar-bg"><div class="score-bar-fill d" style="width:60%"></div></div>
+            <span class="score-val">60</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict-box innovation">
+      <div class="verdict-label">구조학 최종 판정</div>
+      <div class="verdict-title">구조적 혁신 논문 — F·S·D 모두 변화</div>
+      <div class="verdict-text">F(내재적 추론 힘 신규), S(전체 텍스트로 확장), D(think/talk 레이어 추가) — 세 축이 모두 변화했습니다. T=1 전이가 일어나 새로운 구조가 새로운 특성을 만들어냈습니다. 구조학의 명제 "구조가 특성을 결정한다"를 정확히 구현한 논문입니다. 다만 D가 완전한 Face 구조가 아닌 부분 확장에 그친 점은 향후 과제입니다.</div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-label">구조학적 해석</div>
+      <div class="summary-text">Quiet-STaR은 "말하기 전에 생각하라"는 인간의 인지 구조를 언어 모델에 이식하려는 시도입니다. 구조학적으로 보면 — 기존 1D 토큰 시퀀스 위에 내부 추론이라는 새로운 차원을 추가하고, 그 차원이 F(힘)를 갖게 한 것입니다. 특히 S를 QA에서 임의 텍스트로 확장한 것이 가장 혁신적입니다. "모든 텍스트에 이미 추론이 내재되어 있다"는 통찰이 S 확장의 근거입니다. Ω(창발) 관점에서 — Think 레이어와 Talk 레이어와 원본 텍스트라는 세 관계가 Mixing Head를 통해 만나면서 비로소 새로운 특성(zero-shot 추론 능력)이 창발합니다. 3의 관계가 구조를 만든다는 구조학의 공리와 정확히 일치합니다.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showPaper(idx) {
+  document.querySelectorAll('.paper-tab').forEach((t,i) => {
+    t.classList.toggle('active', i === idx);
+  });
+  document.getElementById('paper0').style.display = idx === 0 ? 'block' : 'none';
+  document.getElementById('paper1').style.display = idx === 1 ? 'block' : 'none';
+}
+
+function toggleCompare() {
+  const cv = document.getElementById('compareView');
+  cv.classList.toggle('active');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structurology Paper Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap');
+  :root {
+    --bg:#0d0f14;--surface:#141720;--surface2:#1c2030;
+    --border:rgba(255,255,255,0.08);--accent:#00e5a0;
+    --accent2:#4d7cff;--amber:#f5a623;--red:#ff5c5c;
+    --text:#e8eaf0;--muted:#6b7280;
+    --mono:"DM Mono",monospace;--serif:"Fraunces",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;}
+  body::before{content:"";position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;}
+  .container{max-width:880px;margin:0 auto;padding:40px 24px;position:relative;z-index:1;}
+  .header{text-align:center;margin-bottom:36px;}
+  .header-tag{font-size:11px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+  .header h1{font-family:var(--serif);font-size:36px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .header h1 span{color:var(--accent);font-style:italic;}
+  .header p{font-size:13px;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto;}
+  .badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:0.05em;}
+  .badge-f{background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);color:var(--accent);}
+  .badge-s{background:rgba(77,124,255,0.1);border:1px solid rgba(77,124,255,0.3);color:var(--accent2);}
+  .badge-d{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:var(--amber);}
+
+  /* Counter */
+  .counter-bar{display:flex;justify-content:center;align-items:center;gap:24px;
+    margin:20px 0 28px;padding:14px 24px;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;}
+  .counter-item{text-align:center;}
+  .counter-num{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--accent);line-height:1;margin-bottom:4px;}
+  .counter-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;}
+  .counter-divider{width:1px;height:36px;background:var(--border);}
+
+  /* Model selector */
+  .model-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .model-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+  .model-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .model-card{padding:14px 16px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;}
+  .model-card:hover{border-color:rgba(0,229,160,0.3);}
+  .model-card.active{border-color:var(--accent);background:rgba(0,229,160,0.05);}
+  .model-card-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;}
+  .model-card-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+  .model-card-price{font-size:10px;color:var(--accent);margin-top:6px;}
+
+  /* API Key */
+  .api-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .api-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:10px;}
+  .api-row{display:flex;gap:10px;align-items:center;}
+  .api-input{flex:1;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);
+    border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;}
+  .api-input:focus{border-color:var(--accent);}
+  .api-input::placeholder{color:var(--muted);}
+  .api-save-btn{padding:10px 16px;background:rgba(0,229,160,0.1);color:var(--accent);
+    border:1px solid rgba(0,229,160,0.3);border-radius:8px;font-family:var(--mono);
+    font-size:12px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .api-save-btn:hover{background:rgba(0,229,160,0.2);}
+  .api-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .api-note a{color:var(--accent2);text-decoration:none;}
+  .api-note a:hover{text-decoration:underline;}
+  .api-status{font-size:11px;margin-top:8px;padding:6px 10px;border-radius:6px;display:none;}
+  .api-status.ok{background:rgba(0,229,160,0.1);color:var(--accent);display:block;}
+  .api-status.err{background:rgba(255,92,92,0.1);color:var(--red);display:block;}
+
+  /* Upload */
+  .upload-zone{position:relative;border:1px dashed rgba(0,229,160,0.3);border-radius:12px;padding:32px;
+    text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface);margin-bottom:16px;position:relative;}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(0,229,160,0.04);}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .upload-icon{font-size:26px;margin-bottom:10px;}
+  .upload-zone h3{font-family:var(--serif);font-size:16px;font-weight:300;margin-bottom:5px;}
+  .upload-zone p{font-size:12px;color:var(--muted);}
+  .file-name{margin-top:10px;font-size:12px;color:var(--accent);display:none;}
+
+  /* Analyze button */
+  .analyze-btn{width:100%;padding:15px;background:var(--accent);color:#000;border:none;
+    border-radius:8px;font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;
+    transition:all 0.2s;letter-spacing:0.05em;margin-bottom:28px;}
+  .analyze-btn:hover:not(:disabled){background:#00ffb3;transform:translateY(-1px);}
+  .analyze-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+
+  /* Loading */
+  .loading{display:none;text-align:center;padding:36px;}
+  .loading.active{display:block;}
+  .spinner{width:30px;height:30px;border:2px solid rgba(0,229,160,0.15);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{font-size:12px;color:var(--accent);}
+  .loading-step{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  /* Error */
+  .error-box{background:rgba(255,92,92,0.1);border:1px solid rgba(255,92,92,0.3);
+    border-radius:8px;padding:14px 16px;font-size:12px;color:var(--red);
+    display:none;margin-bottom:16px;line-height:1.6;}
+  .error-box.active{display:block;}
+
+  /* Result */
+  .result{display:none;}
+  .result.active{display:block;}
+
+  .analysis-badge{display:inline-block;padding:6px 14px;background:rgba(0,229,160,0.1);
+    border:1px solid rgba(0,229,160,0.3);border-radius:20px;font-size:12px;
+    color:var(--accent);margin-bottom:16px;}
+
+  .paper-title-box{background:var(--surface);border:1px solid var(--border);
+    border-left:3px solid var(--accent);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .paper-title-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
+  .paper-title-text{font-family:var(--serif);font-size:15px;font-weight:300;color:var(--text);line-height:1.4;}
+
+  /* FSD Cards */
+  .fsd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .fsd-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
+  .fsd-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;}
+  .fsd-card.f::before{background:var(--accent);}
+  .fsd-card.s::before{background:var(--accent2);}
+  .fsd-card.d::before{background:var(--amber);}
+  .fsd-axis-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;}
+  .fsd-card.f .fsd-axis-label{color:var(--accent);}
+  .fsd-card.s .fsd-axis-label{color:var(--accent2);}
+  .fsd-card.d .fsd-axis-label{color:var(--amber);}
+  .fsd-title{font-family:var(--serif);font-size:14px;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .fsd-status{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;margin-bottom:8px;}
+  .status-new{background:rgba(0,229,160,0.15);color:var(--accent);}
+  .status-same{background:rgba(255,92,92,0.15);color:var(--red);}
+  .status-expand{background:rgba(77,124,255,0.15);color:var(--accent2);}
+  .status-partial{background:rgba(245,166,35,0.15);color:var(--amber);}
+  .fsd-desc{font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .fsd-limit{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+  .fsd-limit-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px;}
+  .score-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .score-label{font-size:11px;width:14px;color:var(--muted);}
+  .score-bar-bg{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+  .score-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+  .score-bar-fill.f{background:var(--accent);}
+  .score-bar-fill.s{background:var(--accent2);}
+  .score-bar-fill.d{background:var(--amber);}
+  .score-val{font-size:11px;color:var(--muted);width:32px;text-align:right;}
+
+  /* Transfer */
+  .te-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+  .te-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .te-label{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+  .te-value{font-family:var(--serif);font-size:26px;font-weight:700;margin-bottom:6px;}
+  .te-value.t1{color:var(--accent);}
+  .te-value.t0{color:var(--red);}
+  .te-desc{font-size:11px;color:var(--muted);line-height:1.6;}
+  .te-next{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;}
+  .te-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+
+  /* Score summary */
+  .score-summary{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .score-summary-title{font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+  .score-total{font-family:var(--serif);font-size:32px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .score-total-label{font-size:11px;color:var(--muted);}
+
+  /* Verdict */
+  .verdict-box{border-radius:10px;padding:20px;margin-bottom:20px;}
+  .verdict-box.innovation{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);}
+  .verdict-box.analysis{background:rgba(107,114,128,0.1);border:1px solid rgba(107,114,128,0.3);}
+  .verdict-box.improvement{background:rgba(77,124,255,0.08);border:1px solid rgba(77,124,255,0.3);}
+  .verdict-box.paradigm{background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.3);}
+  .verdict-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;color:var(--muted);}
+  .verdict-title{font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:8px;}
+  .verdict-box.innovation .verdict-title{color:var(--accent);}
+  .verdict-box.analysis .verdict-title{color:var(--muted);}
+  .verdict-box.improvement .verdict-title{color:var(--accent2);}
+  .verdict-box.paradigm .verdict-title{color:var(--amber);}
+  .verdict-text{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .verdict-gap{font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;}
+  .verdict-gap-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--amber);margin-bottom:4px;}
+  .verdict-next{font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px;}
+  .verdict-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;}
+
+  /* Omega */
+  .omega-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .omega-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .omega-value{font-family:var(--serif);font-size:22px;font-weight:700;margin-bottom:8px;}
+  .omega-value.yes{color:var(--accent);}
+  .omega-value.no{color:var(--red);}
+  .omega-value.potential{color:var(--amber);}
+  .omega-text{font-size:12px;color:var(--muted);line-height:1.8;}
+
+  /* Summary */
+  .summary-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px;}
+  .summary-label{font-size:10px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .summary-text{font-size:12px;color:var(--muted);line-height:1.8;}
+
+  /* Recommendation */
+  .rec-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+  .rec-label{font-size:10px;letter-spacing:0.15em;color:var(--accent2);text-transform:uppercase;margin-bottom:10px;}
+  .rec-item{font-size:12px;color:var(--muted);line-height:1.7;padding:6px 0;border-bottom:1px solid var(--border);}
+  .rec-item:last-child{border-bottom:none;}
+  .rec-num{color:var(--accent2);margin-right:8px;}
+
+  /* Buttons */
+  .download-btn{width:100%;padding:14px;background:rgba(77,124,255,0.1);color:var(--accent2);
+    border:1px solid rgba(77,124,255,0.3);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;
+    margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .download-btn:hover{background:rgba(77,124,255,0.2);}
+  .reset-btn{width:100%;padding:12px;background:transparent;color:var(--muted);
+    border:1px solid var(--border);border-radius:8px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;transition:all 0.2s;margin-bottom:40px;}
+  .reset-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+
+  .footer{text-align:center;padding-top:24px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--muted);line-height:1.8;}
+  .footer a{color:var(--accent);text-decoration:none;}
+  .footer a:hover{text-decoration:underline;}
+
+  @media(max-width:600px){
+    .fsd-grid{grid-template-columns:1fr;}
+    .te-grid{grid-template-columns:1fr;}
+    .model-grid{grid-template-columns:1fr;}
+    .header h1{font-size:26px;}
+    .api-row{flex-direction:column;}
+    .counter-divider{display:none;}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window["pdfjs-dist/build/pdf"]) window["pdfjs-dist/build/pdf"].GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-tag">Structurology · A New Academic Framework</div>
+    <h1>Paper <span>Structure Analyzer</span></h1>
+    <p>Deep structural analysis of academic papers using the Structurology FSD framework.<br>
+    Structure determines characteristics — not components.</p>
+    <div class="badges">
+      <span class="badge badge-f">F — Force</span>
+      <span class="badge badge-s">S — Scope</span>
+      <span class="badge badge-d">D — Dimension</span>
+    </div>
+  </div>
+
+  <!-- Counter -->
+  <div class="counter-bar">
+    <div class="counter-item">
+      <div class="counter-num" id="globalCount">—</div>
+      <div class="counter-label">Papers analyzed (est.)</div>
+    </div>
+    <div class="counter-divider"></div>
+    <div class="counter-item">
+      <div class="counter-num" id="todayCount">—</div>
+      <div class="counter-label">Analyzed today</div>
+    </div>
+    <div class="counter-divider"></div>
+    <div class="counter-item">
+      <div class="counter-num" id="myCount">—</div>
+      <div class="counter-label">Your analyses</div>
+    </div>
+  </div>
+
+  <!-- Hybrid Engine Info -->
+  <div class="model-section">
+    <div class="model-label">Hybrid Analysis Engine</div>
+    <div class="model-grid">
+      <div class="model-card active">
+        <div class="model-card-name">Stage 1 — Claude Haiku</div>
+        <div class="model-card-desc">Anthropic · PDF text extraction · Fast &amp; accurate</div>
+        <div class="model-card-price">~$0.003 per paper (extraction only)</div>
+      </div>
+      <div class="model-card active">
+        <div class="model-card-name">Stage 2 — DeepSeek-R1</div>
+        <div class="model-card-desc">DeepSeek · Deep structural reasoning · Structurology FSD analysis</div>
+        <div class="model-card-price">~$0.01–0.02 per paper</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6;">
+      Total cost per analysis: <span style="color:var(--accent)">~$0.013–0.023</span> 
+      — up to 5x cheaper than Claude-only, with deeper reasoning.
+    </div>
+  </div>
+
+  <!-- API Keys -->
+  <div class="api-section">
+    <div class="api-label">API Keys (both required)</div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:10px;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">
+        Anthropic API Key — for PDF extraction
+      </div>
+      <div class="api-row">
+        <input type="password" id="claudeKeyInput" class="api-input" placeholder="sk-ant-api03-..." oninput="updateAnalyzeBtn()"/>
+        <button class="api-save-btn" onclick="saveClaudeKey()">Save</button>
+      </div>
+      <div class="api-status" id="claudeStatus"></div>
+    </div>
+    <div>
+      <div style="font-size:10px;letter-spacing:0.1em;color:var(--accent2);text-transform:uppercase;margin-bottom:6px;">
+        DeepSeek API Key — for FSD analysis
+      </div>
+      <div class="api-row">
+        <input type="password" id="deepseekKeyInput" class="api-input" placeholder="sk-..." oninput="updateAnalyzeBtn()"/>
+        <button class="api-save-btn" onclick="saveDeepseekKey()">Save</button>
+      </div>
+      <div class="api-status" id="deepseekStatus"></div>
+    </div>
+    <div class="api-note" style="margin-top:10px;">
+      Keys stored in browser only. 
+      Get Anthropic key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> · 
+      Get DeepSeek key at <a href="https://platform.deepseek.com" target="_blank">platform.deepseek.com</a>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".pdf" onchange="onFileChange(event)">
+    <div class="upload-icon">⬡</div>
+    <h3>Drop a PDF paper here or click to upload</h3>
+    <p>arXiv papers, journal articles, conference papers — any PDF</p>
+    <div class="file-name" id="fileName"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <button class="analyze-btn" id="analyzeBtn" disabled onclick="analyze()">
+    ⬡ &nbsp; Analyze paper structure
+  </button>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Analyzing paper structure...</div>
+    <div class="loading-step" id="loadingStep">Reading PDF content</div>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="result">
+    <div class="analysis-badge" id="analysisBadge">⬡ Analysis #—</div>
+
+    <div class="paper-title-box">
+      <div class="paper-title-label">Analyzed paper</div>
+      <div class="paper-title-text" id="paperTitle">—</div>
+    </div>
+
+    <!-- FSD Grid -->
+    <div class="fsd-grid">
+      <div class="fsd-card f">
+        <div class="fsd-axis-label">F — Force</div>
+        <div class="fsd-title">Force change</div>
+        <div class="fsd-status" id="fStatus">—</div>
+        <div class="fsd-desc" id="fDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label">Remaining limitation</div><div id="fLimit">—</div></div>
+        <div class="score-row">
+          <span class="score-label">F</span>
+          <div class="score-bar-bg"><div class="score-bar-fill f" id="fBar" style="width:0%"></div></div>
+          <span class="score-val" id="fScore">0/100</span>
+        </div>
+      </div>
+      <div class="fsd-card s">
+        <div class="fsd-axis-label">S — Scope</div>
+        <div class="fsd-title">Scope change</div>
+        <div class="fsd-status" id="sStatus">—</div>
+        <div class="fsd-desc" id="sDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label">Remaining limitation</div><div id="sLimit">—</div></div>
+        <div class="score-row">
+          <span class="score-label">S</span>
+          <div class="score-bar-bg"><div class="score-bar-fill s" id="sBar" style="width:0%"></div></div>
+          <span class="score-val" id="sScore">0/100</span>
+        </div>
+      </div>
+      <div class="fsd-card d">
+        <div class="fsd-axis-label">D — Dimension</div>
+        <div class="fsd-title">Dimension change</div>
+        <div class="fsd-status" id="dStatus">—</div>
+        <div class="fsd-desc" id="dDesc">—</div>
+        <div class="fsd-limit"><div class="fsd-limit-label">Remaining limitation</div><div id="dLimit">—</div></div>
+        <div class="score-row">
+          <span class="score-label">D</span>
+          <div class="score-bar-bg"><div class="score-bar-fill d" id="dBar" style="width:0%"></div></div>
+          <span class="score-val" id="dScore">0/100</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transfer + Score -->
+    <div class="te-grid">
+      <div class="te-card">
+        <div class="te-label">T — Structural Transfer</div>
+        <div class="te-value" id="tValue">—</div>
+        <div class="te-desc" id="tDesc">—</div>
+        <div class="te-next"><div class="te-next-label">What T=1 would require</div><div id="tNext">—</div></div>
+      </div>
+      <div class="score-summary">
+        <div class="score-summary-title">FSD Total Innovation Score</div>
+        <div class="score-total" id="totalScore">—</div>
+        <div class="score-total-label">/ 300</div>
+        <div style="margin-top:14px">
+          <div class="score-row" style="margin-bottom:6px">
+            <span class="score-label">F</span>
+            <div class="score-bar-bg"><div class="score-bar-fill f" id="fBar2" style="width:0%"></div></div>
+            <span class="score-val" id="fScore2">0</span>
+          </div>
+          <div class="score-row" style="margin-bottom:6px">
+            <span class="score-label">S</span>
+            <div class="score-bar-bg"><div class="score-bar-fill s" id="sBar2" style="width:0%"></div></div>
+            <span class="score-val" id="sScore2">0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">D</span>
+            <div class="score-bar-bg"><div class="score-bar-fill d" id="dBar2" style="width:0%"></div></div>
+            <span class="score-val" id="dScore2">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Omega -->
+    <div class="omega-box">
+      <div class="omega-label">Ω — Structural Emergence</div>
+      <div class="omega-value" id="omegaValue">—</div>
+      <div class="omega-text" id="omegaText">—</div>
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict-box" id="verdictBox">
+      <div class="verdict-label">Structurology verdict</div>
+      <div class="verdict-title" id="verdictTitle">—</div>
+      <div class="verdict-text" id="verdictText">—</div>
+      <div class="verdict-gap"><div class="verdict-gap-label">Structural gap remaining</div><div id="verdictGap">—</div></div>
+      <div class="verdict-next"><div class="verdict-next-label">Next structural step</div><div id="verdictNext">—</div></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="rec-box">
+      <div class="rec-label">Concrete recommendations for T=1</div>
+      <div id="recList">—</div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-box">
+      <div class="summary-label">Structural interpretation</div>
+      <div class="summary-text" id="summaryText">—</div>
+    </div>
+
+    <button class="download-btn" onclick="downloadPDF()">⬡ &nbsp; Download PDF Report</button>
+    <button class="reset-btn" onclick="resetAnalyzer()">Analyze another paper</button>
+  </div>
+
+  <div class="footer">
+    <div>Structurology — A new academic framework</div>
+    <div>Conceived and developed by <strong>Changho Song</strong>, founder of Velsanet</div>
+    <div>Powered by <strong>Claude</strong> (Anthropic) &amp; <strong>DeepSeek</strong></div>
+    <div style="margin-top:8px">
+      <a href="https://github.com/joa337/structurology" target="_blank">github.com/joa337/structurology</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/joa337/velsanet-whitepapers" target="_blank">Velsanet White Papers</a>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:#333">Structure belongs to everyone — Structurology is an open framework.</div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let fileData = null;
+let claudeKey = localStorage.getItem('structurology_claude_key') || '';
+let deepseekKey = localStorage.getItem('structurology_deepseek_key') || '';
+
+// ── System Prompt ──
+const SYSTEM_PROMPT = `You are a Structurology (구조학) paper analysis expert. Structurology is a new academic framework conceived by Changho Song, founder of Velsanet.
+
+CORE PROPOSITION: "Structure determines characteristics. Not the components."
+
+STRUCTUROLOGY FSD FRAMEWORK:
+
+F (Force) — The intrinsic strength of the proposed mechanism.
+- NEW (score 70-100): A genuinely new mechanism that did not exist before in this domain.
+- SAME (score 0-20): Uses existing mechanisms unchanged.
+- EXPAND (score 40-70): Meaningfully extends an existing mechanism.
+- PARTIAL (score 20-40): Minor modification of existing mechanism.
+RULE: A new evaluation metric is NOT a new F. A new training objective or architectural mechanism IS potentially new F.
+
+S (Scope) — The range and direction of application.
+- EXPAND (score 70-100): Dramatically widens where the method applies.
+- SAME (score 0-20): Same application domain as prior work.
+- PARTIAL (score 30-50): Slight scope adjustment.
+RULE: Showing existing scope is smaller than assumed = scope DISCOVERY not expansion. Note contraction explicitly if found.
+
+D (Dimension) — The structural level of connection.
+- NEW (score 70-100): Creates a genuinely new architectural layer of connection that escapes the 2D matrix/vertex structure.
+- SAME (score 0-20): Operates within the same 2D matrix or vertex structure.
+- PARTIAL (score 30-60): Adds partial new dimensional layer.
+RULE: An evaluation metric like pass@k is NOT a new dimension. A new reasoning/inference layer IS potentially new D. RLVR on same 2D matrix = D unchanged.
+
+T (Transfer) — Whether structural characteristics genuinely transfer to new properties.
+- T=1: New structure creates properties the base/prior system does not have. Zero-shot improvements on held-out tasks.
+- T=0: Bounded by existing system capability. No genuinely new properties emerge.
+RULE: If the paper's own findings show the method is bounded by the base model/prior work, T=0.
+
+Ω (Emergence) — Whether structural emergence actually occurred.
+- YES: F+S+D together created genuinely new characteristics that none of F, S, or D alone could create.
+- NO: No new structural characteristics emerged.
+- POTENTIAL: The structure is in place but implementation is incomplete; emergence could occur with further work.
+
+SCORE GUIDELINES:
+0-15: Completely unchanged · 16-35: Minor variation · 36-55: Meaningful change · 56-75: Significant change · 76-100: Genuinely new
+
+IMPORTANT: ALL text must be in English. Do not use any other language.
+
+Respond ONLY in this exact JSON (no markdown, no preamble):
+{
+  "title": "Full paper title in English",
+  "f": {
+    "status": "new|same|expand|partial",
+    "statusLabel": "Newly created|Unchanged|Dramatically expanded|Partially changed",
+    "desc": "3-4 sentences: what force this paper uses, named comparison to prior work, Structurology judgment with evidence",
+    "limitation": "1-2 sentences: what structural limitation remains in F even after this paper",
+    "score": 0
+  },
+  "s": {
+    "status": "new|same|expand|partial",
+    "statusLabel": "Newly created|Unchanged|Dramatically expanded|Partially changed",
+    "desc": "3-4 sentences: scope of this paper, named comparison to prior work, whether scope expanded/contracted/same with evidence",
+    "limitation": "1-2 sentences: what scope limitation remains",
+    "score": 0
+  },
+  "d": {
+    "status": "new|same|expand|partial",
+    "statusLabel": "Newly created|Unchanged|Dramatically expanded|Partially changed",
+    "desc": "3-4 sentences: dimensional structure used, whether it escapes 2D matrix/vertex, Structurology judgment with specific evidence",
+    "limitation": "1-2 sentences: what dimensional limitation remains",
+    "score": 0
+  },
+  "t": {
+    "value": "T=1|T=0",
+    "desc": "2-3 sentences: judgment with specific evidence from the paper",
+    "next": "2-3 sentences: what would specifically be needed for T=1 (if T=0) or what T=1 enabled (if T=1)"
+  },
+  "omega": {
+    "value": "YES|NO|POTENTIAL",
+    "text": "3-4 sentences: whether F+S+D together created new emergence, specific evidence, and why or why not"
+  },
+  "verdict": {
+    "type": "paradigm|innovation|improvement|analysis",
+    "title": "Paradigm shift|Structural innovation|Incremental improvement|Analysis paper",
+    "text": "3-4 sentences: classification reasoning and what FSD axes changed",
+    "gap": "2 sentences: the most important structural gap this paper leaves",
+    "next": "2 sentences: the most important next structural step for this field"
+  },
+  "recommendations": [
+    "Specific actionable step 1 that would move this paper toward T=1",
+    "Specific actionable step 2",
+    "Specific actionable step 3",
+    "Specific actionable step 4"
+  ],
+  "summary": "5-6 sentences: structural position in field history, F+S+D interaction, whether Omega occurred and why, comparison to truly structurally innovative work, concrete recommendation"
+}`;
+
+// ── API Keys ──
+function saveClaudeKey() {
+  const val = document.getElementById('claudeKeyInput').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    showStatus('claudeStatus', 'err', 'Invalid key. Must start with sk-ant-');
+    return;
+  }
+  claudeKey = val;
+  localStorage.setItem('structurology_claude_key', val);
+  showStatus('claudeStatus', 'ok', 'Anthropic key saved.');
+  updateAnalyzeBtn();
+}
+
+function saveDeepseekKey() {
+  const val = document.getElementById('deepseekKeyInput').value.trim();
+  if (!val.startsWith('sk-')) {
+    showStatus('deepseekStatus', 'err', 'Invalid key. Must start with sk-');
+    return;
+  }
+  deepseekKey = val;
+  localStorage.setItem('structurology_deepseek_key', val);
+  showStatus('deepseekStatus', 'ok', 'DeepSeek key saved.');
+  updateAnalyzeBtn();
+}
+
+function showStatus(elId, type, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'api-status ' + type;
+  el.textContent = (type === 'ok' ? '✓ ' : '✗ ') + msg;
+}
+
+function showApiStatus(type, msg) {
+  showStatus('claudeStatus', type, msg);
+}
+
+// ── File ──
+function onFileChange(e) {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+}
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    loadFile(file);
+  } else if (file) {
+    document.getElementById('errorBox').textContent = 'Please upload a PDF file.';
+    document.getElementById('errorBox').classList.add('active');
+    setTimeout(() => document.getElementById('errorBox').classList.remove('active'), 3000);
+  }
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    fileData = e.target.result.split(',')[1];
+    const fn = document.getElementById('fileName');
+    fn.textContent = '⬡ ' + file.name;
+    fn.style.display = 'block';
+    updateAnalyzeBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateAnalyzeBtn() {
+  const ck = document.getElementById('claudeKeyInput').value.trim();
+  const dk = document.getElementById('deepseekKeyInput').value.trim();
+  document.getElementById('analyzeBtn').disabled = !(fileData && ck.startsWith('sk-ant-') && dk.startsWith('sk-'));
+}
+
+// ── Loading messages ──
+const loadingMsgs = [
+  ['Reading PDF content...', 'Extracting structure and arguments'],
+  ['Analyzing F (Force)...', 'Is the core mechanism genuinely new?'],
+  ['Analyzing S (Scope)...', 'How has the application range changed?'],
+  ['Analyzing D (Dimension)...', 'Is there a new dimensional structure?'],
+  ['Judging T (Transfer)...', 'Did new structural characteristics emerge?'],
+  ['Calculating Omega...', 'Did structural emergence occur?'],
+  ['Writing structural interpretation...', 'Finalizing Structurology verdict'],
+];
+
+// ── Analyze ──
+async function analyze() {
+  if (!fileData) return;
+  const ck = document.getElementById('claudeKeyInput').value.trim();
+  const dk = document.getElementById('deepseekKeyInput').value.trim();
+  if (!ck || !dk) return;
+
+  document.getElementById('errorBox').classList.remove('active');
+  document.getElementById('result').classList.remove('active');
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('analyzeBtn').disabled = true;
+
+  let msgIdx = 0;
+  const interval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMsgs.length;
+    document.getElementById('loadingText').textContent = loadingMsgs[msgIdx][0];
+    document.getElementById('loadingStep').textContent = loadingMsgs[msgIdx][1];
+  }, 2200);
+
+  try {
+    // Stage 1: Claude Haiku로 PDF 텍스트 추출
+    const ck = document.getElementById('claudeKeyInput').value.trim();
+    const dk = document.getElementById('deepseekKeyInput').value.trim();
+    const result = await analyzeHybrid(ck, dk);
+    clearInterval(interval);
+    await incrementCounter();
+    renderResult(result);
+  } catch(err) {
+    clearInterval(interval);
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('errorBox').textContent = 'Analysis failed: ' + err.message;
+    document.getElementById('errorBox').classList.add('active');
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+// ── Hybrid: Stage1 Claude + Stage2 DeepSeek ──
+async function analyzeHybrid(claudeKey, deepseekKey) {
+  // Stage 1: Claude Haiku로 PDF 텍스트 추출
+  document.getElementById('loadingText').textContent = 'Stage 1: Extracting PDF with Claude...';
+  document.getElementById('loadingStep').textContent = 'Claude Haiku reading the paper';
+
+  const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': claudeKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 3000,
+      system: 'Extract the complete text content from this PDF academic paper. Include: full title, authors, abstract, all section headings, key methods, results, and conclusions. Output as clean plain text. Be thorough.',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileData } },
+          { type: 'text', text: 'Extract all text content from this paper.' }
+        ]
+      }]
+    })
+  });
+
+  if (!extractRes.ok) {
+    const e = await extractRes.json();
+    throw new Error('Claude extraction failed: ' + (e.error?.message || extractRes.status));
+  }
+
+  const extractData = await extractRes.json();
+  const extractedText = extractData.content.map(c => c.text || '').join('');
+
+  // Stage 2: DeepSeek-R1으로 FSD 분석
+  document.getElementById('loadingText').textContent = 'Stage 2: DeepSeek-R1 FSD analysis...';
+  document.getElementById('loadingStep').textContent = 'Deep structural reasoning in progress';
+
+  const analysisRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + deepseekKey
+    },
+    body: JSON.stringify({
+      model: 'deepseek-reasoner',
+      max_tokens: 4000,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: 'Analyze this academic paper using the Structurology FSD framework. All text must be in English. Respond in JSON only.\n\n=== PAPER CONTENT ===\n' + extractedText.substring(0, 28000) }
+      ]
+    })
+  });
+
+  if (!analysisRes.ok) {
+    const e = await analysisRes.json();
+    throw new Error('DeepSeek analysis failed: ' + (e.error?.message || analysisRes.status));
+  }
+
+  const analysisData = await analysisRes.json();
+  const raw = analysisData.choices[0].message.content || '';
+  return JSON.parse(raw.replace(/```json|```/g, '').trim());
+}
+
+async function analyzeWithClaude(key) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 2000,
+      system: SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileData } },
+          { type: 'text', text: 'Analyze this paper using the Structurology FSD framework. All responses must be in English. Respond in JSON only.' }
+        ]
+      }]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error ' + res.status); }
+  const data = await res.json();
+  const raw = data.content.map(i => i.text || '').join('');
+  return JSON.parse(raw.replace(/```json|```/g, '').trim());
+}
+
+async function analyzeWithDeepSeek(key) {
+  // DeepSeek doesn't support PDF directly — extract text first via FileReader
+  const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      model: 'deepseek-reasoner',
+      max_tokens: 4000,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: 'I will provide you with the content of an academic paper. Analyze it using the Structurology FSD framework. All responses must be in English. Respond in JSON only.
+
+Note: The paper has been uploaded as PDF. Please analyze based on the title, abstract and key concepts that I describe: this is the base64 encoded PDF: [PDF data attached]. Focus on identifying the core F (Force/mechanism), S (Scope/range), D (Dimension/structure), T (Transfer), and Omega (emergence) as per the Structurology framework.' }
+      ]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'DeepSeek API error ' + res.status); }
+  const data = await res.json();
+  const raw = data.choices[0].message.content;
+  return JSON.parse(raw.replace(/```json|```/g, '').trim());
+}
+
+// ── Counter ──
+const TODAY_KEY = 'structurology-today-' + new Date().toISOString().slice(0,10);
+
+async function loadCounters() {
+  // Global counter via worker.dev free service
+  try {
+    const res = await fetch('https://hits.sh/joa337.github.io/structurology.json');
+    const data = await res.json();
+    document.getElementById('globalCount').textContent = (data.count || 0).toLocaleString();
+  } catch(e) {
+    // fallback to localStorage estimate
+    const est = parseInt(localStorage.getItem('structurology_global_est') || '1');
+    document.getElementById('globalCount').textContent = est.toLocaleString();
+  }
+  document.getElementById('todayCount').textContent = parseInt(localStorage.getItem(TODAY_KEY) || '0');
+  document.getElementById('myCount').textContent = parseInt(localStorage.getItem('structurology_my_count') || '0');
+}
+
+async function incrementCounter() {
+  // Increment local counters
+  const today = parseInt(localStorage.getItem(TODAY_KEY) || '0') + 1;
+  localStorage.setItem(TODAY_KEY, today);
+  document.getElementById('todayCount').textContent = today;
+  const mine = parseInt(localStorage.getItem('structurology_my_count') || '0') + 1;
+  localStorage.setItem('structurology_my_count', mine);
+  document.getElementById('myCount').textContent = mine;
+  // Global estimate
+  const est = parseInt(localStorage.getItem('structurology_global_est') || '1') + 1;
+  localStorage.setItem('structurology_global_est', est);
+  document.getElementById('globalCount').textContent = est.toLocaleString();
+  document.getElementById('analysisBadge').textContent = '⬡ Analysis #' + mine;
+}
+
+// ── Render ──
+const statusClassMap = { new:'status-new', same:'status-same', expand:'status-expand', partial:'status-partial' };
+
+function renderResult(r) {
+  document.getElementById('loading').classList.remove('active');
+  document.getElementById('result').classList.add('active');
+
+  document.getElementById('paperTitle').textContent = r.title;
+
+  ['f','s','d'].forEach(axis => {
+    const d = r[axis];
+    const st = document.getElementById(axis + 'Status');
+    st.textContent = d.statusLabel;
+    st.className = 'fsd-status ' + (statusClassMap[d.status] || 'status-partial');
+    document.getElementById(axis + 'Desc').textContent = d.desc;
+    document.getElementById(axis + 'Limit').textContent = d.limitation;
+    setTimeout(() => {
+      document.getElementById(axis + 'Bar').style.width = d.score + '%';
+      document.getElementById(axis + 'Bar2').style.width = d.score + '%';
+      document.getElementById(axis + 'Score').textContent = d.score + '/100';
+      document.getElementById(axis + 'Score2').textContent = d.score;
+    }, 400);
+  });
+
+  // Total score
+  const total = (r.f.score || 0) + (r.s.score || 0) + (r.d.score || 0);
+  setTimeout(() => { document.getElementById('totalScore').textContent = total; }, 500);
+
+  // Transfer
+  const tv = document.getElementById('tValue');
+  tv.textContent = r.t.value;
+  tv.className = 'te-value ' + (r.t.value === 'T=1' ? 't1' : 't0');
+  document.getElementById('tDesc').textContent = r.t.desc;
+  document.getElementById('tNext').textContent = r.t.next;
+
+  // Omega
+  const ov = document.getElementById('omegaValue');
+  ov.textContent = 'Ω = ' + r.omega.value;
+  ov.className = 'omega-value ' + r.omega.value.toLowerCase();
+  document.getElementById('omegaText').textContent = r.omega.text;
+
+  // Verdict
+  const vb = document.getElementById('verdictBox');
+  vb.className = 'verdict-box ' + (r.verdict.type || 'analysis');
+  document.getElementById('verdictTitle').textContent = r.verdict.title;
+  document.getElementById('verdictText').textContent = r.verdict.text;
+  document.getElementById('verdictGap').textContent = r.verdict.gap;
+  document.getElementById('verdictNext').textContent = r.verdict.next;
+
+  // Recommendations
+  const recList = document.getElementById('recList');
+  recList.innerHTML = '';
+  (r.recommendations || []).forEach((rec, i) => {
+    const div = document.createElement('div');
+    div.className = 'rec-item';
+    div.innerHTML = '<span class="rec-num">' + (i+1) + '.</span>' + rec;
+    recList.appendChild(div);
+  });
+
+  // Summary
+  document.getElementById('summaryText').textContent = r.summary;
+}
+
+// ── PDF Download ──
+function downloadPDF() {
+  const title = document.getElementById('paperTitle').textContent;
+  const badge = document.getElementById('analysisBadge').textContent;
+  const fStatus = document.getElementById('fStatus').textContent;
+  const fDesc = document.getElementById('fDesc').textContent;
+  const fLimit = document.getElementById('fLimit').textContent;
+  const fScore = document.getElementById('fScore').textContent;
+  const sStatus = document.getElementById('sStatus').textContent;
+  const sDesc = document.getElementById('sDesc').textContent;
+  const sLimit = document.getElementById('sLimit').textContent;
+  const sScore = document.getElementById('sScore').textContent;
+  const dStatus = document.getElementById('dStatus').textContent;
+  const dDesc = document.getElementById('dDesc').textContent;
+  const dLimit = document.getElementById('dLimit').textContent;
+  const dScore = document.getElementById('dScore').textContent;
+  const tVal = document.getElementById('tValue').textContent;
+  const tDesc = document.getElementById('tDesc').textContent;
+  const tNext = document.getElementById('tNext').textContent;
+  const omegaVal = document.getElementById('omegaValue').textContent;
+  const omegaText = document.getElementById('omegaText').textContent;
+  const vTitle = document.getElementById('verdictTitle').textContent;
+  const vText = document.getElementById('verdictText').textContent;
+  const vGap = document.getElementById('verdictGap').textContent;
+  const vNext = document.getElementById('verdictNext').textContent;
+  const totalScore = document.getElementById('totalScore').textContent;
+  const summary = document.getElementById('summaryText').textContent;
+  const date = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+
+  const recs = Array.from(document.querySelectorAll('.rec-item'))
+    .map((el,i) => '<li>' + el.textContent.replace((i+1)+'.','').trim() + '</li>').join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Structurology Report — ${title}</title>
+<style>
+body{font-family:"DM Mono",monospace;background:#fff;color:#1a1a1a;margin:0;padding:48px;max-width:800px;margin:0 auto;font-size:12px;line-height:1.7;}
+.cover{text-align:center;padding:40px 0 32px;border-bottom:2px solid #00e5a0;margin-bottom:32px;}
+.cover-tag{font-size:10px;letter-spacing:0.2em;color:#00a070;text-transform:uppercase;margin-bottom:10px;}
+.cover-title{font-size:28px;font-weight:700;color:#0d0f14;margin-bottom:6px;}
+.cover-title span{color:#00a070;font-style:italic;}
+.cover-date{font-size:11px;color:#888;margin-top:8px;}
+.cover-badge{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:#e8fff8;border:1px solid #00e5a0;font-size:11px;color:#00a070;}
+.paper-box{background:#f8fffe;border-left:3px solid #00a070;padding:14px 18px;margin-bottom:28px;border-radius:0 8px 8px 0;}
+.paper-box-label{font-size:9px;letter-spacing:0.15em;color:#00a070;text-transform:uppercase;margin-bottom:6px;}
+.paper-box-title{font-size:14px;font-weight:300;color:#1a1a1a;line-height:1.5;}
+.section-title{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin:24px 0 12px;padding-bottom:6px;border-bottom:1px solid #eee;}
+.fsd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.fsd-card{border-radius:8px;padding:14px;border:1px solid #eee;}
+.fsd-card.f{border-top:2px solid #00a070;}
+.fsd-card.s{border-top:2px solid #4d7cff;}
+.fsd-card.d{border-top:2px solid #f5a623;}
+.fsd-axis{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;}
+.fsd-card.f .fsd-axis{color:#00a070;}
+.fsd-card.s .fsd-axis{color:#4d7cff;}
+.fsd-card.d .fsd-axis{color:#f5a623;}
+.fsd-status{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;margin-bottom:6px;}
+.status-new{background:#e8fff8;color:#00a070;}
+.status-same{background:#fff0f0;color:#cc3333;}
+.status-expand{background:#eef2ff;color:#4d7cff;}
+.status-partial{background:#fff8e8;color:#cc8800;}
+.fsd-desc{font-size:10px;color:#555;line-height:1.6;margin-bottom:6px;}
+.fsd-limit-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#cc3333;margin-top:6px;margin-bottom:3px;}
+.fsd-limit{font-size:10px;color:#777;line-height:1.5;}
+.score-bar{height:4px;background:#eee;border-radius:2px;margin-top:8px;}
+.score-fill-f{background:#00a070;height:100%;border-radius:2px;}
+.score-fill-s{background:#4d7cff;height:100%;border-radius:2px;}
+.score-fill-d{background:#f5a623;height:100%;border-radius:2px;}
+.score-num{font-size:9px;color:#888;text-align:right;}
+.te-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.te-card{border:1px solid #eee;border-radius:8px;padding:14px;}
+.te-label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#888;margin-bottom:8px;}
+.te-value{font-size:22px;font-weight:700;margin-bottom:6px;}
+.te-value.t1{color:#00a070;} .te-value.t0{color:#cc3333;}
+.te-desc{font-size:10px;color:#555;line-height:1.5;}
+.te-next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#4d7cff;margin-top:8px;margin-bottom:3px;}
+.te-next{font-size:10px;color:#555;line-height:1.5;}
+.score-summary{border:1px solid #eee;border-radius:8px;padding:14px;}
+.score-total-num{font-size:26px;font-weight:700;color:#00a070;}
+.omega-box{background:#f8fffe;border:1px solid #00e5a0;border-radius:8px;padding:14px;margin-bottom:16px;}
+.omega-label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#00a070;margin-bottom:6px;}
+.omega-value{font-size:18px;font-weight:700;margin-bottom:6px;}
+.omega-value.yes{color:#00a070;} .omega-value.no{color:#cc3333;} .omega-value.potential{color:#cc8800;}
+.omega-text{font-size:10px;color:#555;line-height:1.6;}
+.verdict{border-radius:8px;padding:16px;margin-bottom:16px;}
+.verdict.innovation{background:#e8fff8;border:1px solid #00e5a0;}
+.verdict.analysis{background:#f5f5f5;border:1px solid #ccc;}
+.verdict.improvement{background:#eef2ff;border:1px solid #4d7cff;}
+.verdict.paradigm{background:#fff8e8;border:1px solid #f5a623;}
+.verdict-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:#888;margin-bottom:6px;}
+.verdict-title{font-size:16px;font-weight:700;margin-bottom:8px;}
+.verdict.innovation .verdict-title{color:#00a070;}
+.verdict.analysis .verdict-title{color:#888;}
+.verdict.improvement .verdict-title{color:#4d7cff;}
+.verdict.paradigm .verdict-title{color:#cc8800;}
+.verdict-text{font-size:11px;color:#555;line-height:1.7;}
+.gap-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#cc8800;margin-top:10px;margin-bottom:4px;}
+.next-label{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#4d7cff;margin-top:8px;margin-bottom:4px;}
+.small-text{font-size:10px;color:#555;line-height:1.6;}
+.rec-box{border:1px solid #eee;border-left:3px solid #4d7cff;border-radius:8px;padding:14px;margin-bottom:16px;}
+.rec-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:#4d7cff;margin-bottom:10px;}
+.rec-list{font-size:10px;color:#555;line-height:1.8;padding-left:16px;}
+.summary-box{background:#f8f8f8;border-radius:8px;padding:14px;}
+.summary-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:#00a070;margin-bottom:8px;}
+.summary-text{font-size:11px;color:#555;line-height:1.8;}
+.footer-pdf{text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:10px;color:#aaa;line-height:1.8;}
+@media print{body{padding:24px;}.fsd-grid{break-inside:avoid;}.verdict{break-inside:avoid;}}
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window["pdfjs-dist/build/pdf"]) window["pdfjs-dist/build/pdf"].GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+</head><body>
+<div class="cover">
+  <div class="cover-tag">Structurology · A New Academic Framework</div>
+  <div class="cover-title">Paper <span>Structure Report</span></div>
+  <div class="cover-date">Generated on ${date}</div>
+  <div class="cover-badge">${badge}</div>
+</div>
+<div class="paper-box">
+  <div class="paper-box-label">Analyzed paper</div>
+  <div class="paper-box-title">${title}</div>
+</div>
+<div class="section-title">FSD Structural Analysis</div>
+<div class="fsd-grid">
+  <div class="fsd-card f">
+    <div class="fsd-axis">F — Force</div>
+    <span class="fsd-status status-${getStatusClass(fStatus)}">${fStatus}</span>
+    <div class="fsd-desc">${fDesc}</div>
+    <div class="fsd-limit-label">Remaining limitation</div>
+    <div class="fsd-limit">${fLimit}</div>
+    <div class="score-bar"><div class="score-fill-f" style="width:${parseInt(fScore)}%"></div></div>
+    <div class="score-num">${fScore}</div>
+  </div>
+  <div class="fsd-card s">
+    <div class="fsd-axis">S — Scope</div>
+    <span class="fsd-status status-${getStatusClass(sStatus)}">${sStatus}</span>
+    <div class="fsd-desc">${sDesc}</div>
+    <div class="fsd-limit-label">Remaining limitation</div>
+    <div class="fsd-limit">${sLimit}</div>
+    <div class="score-bar"><div class="score-fill-s" style="width:${parseInt(sScore)}%"></div></div>
+    <div class="score-num">${sScore}</div>
+  </div>
+  <div class="fsd-card d">
+    <div class="fsd-axis">D — Dimension</div>
+    <span class="fsd-status status-${getStatusClass(dStatus)}">${dStatus}</span>
+    <div class="fsd-desc">${dDesc}</div>
+    <div class="fsd-limit-label">Remaining limitation</div>
+    <div class="fsd-limit">${dLimit}</div>
+    <div class="score-bar"><div class="score-fill-d" style="width:${parseInt(dScore)}%"></div></div>
+    <div class="score-num">${dScore}</div>
+  </div>
+</div>
+<div class="section-title">Structural Transfer &amp; Score</div>
+<div class="te-grid">
+  <div class="te-card">
+    <div class="te-label">T — Transfer</div>
+    <div class="te-value ${tVal === 'T=1' ? 't1' : 't0'}">${tVal}</div>
+    <div class="te-desc">${tDesc}</div>
+    <div class="te-next-label">What T=1 would require</div>
+    <div class="te-next">${tNext}</div>
+  </div>
+  <div class="score-summary">
+    <div class="te-label">FSD Total Score</div>
+    <div class="score-total-num">${totalScore} / 300</div>
+    <div style="margin-top:12px;font-size:10px;color:#555">
+      F: ${fScore} &nbsp;·&nbsp; S: ${sScore} &nbsp;·&nbsp; D: ${dScore}
+    </div>
+  </div>
+</div>
+<div class="section-title">Ω — Structural Emergence</div>
+<div class="omega-box">
+  <div class="omega-label">Omega</div>
+  <div class="omega-value ${omegaVal.includes('YES') ? 'yes' : omegaVal.includes('NO') ? 'no' : 'potential'}">${omegaVal}</div>
+  <div class="omega-text">${omegaText}</div>
+</div>
+<div class="section-title">Structurology Verdict</div>
+<div class="verdict">
+  <div class="verdict-label">Final classification</div>
+  <div class="verdict-title">${vTitle}</div>
+  <div class="verdict-text">${vText}</div>
+  <div class="gap-label">Structural gap remaining</div>
+  <div class="small-text">${vGap}</div>
+  <div class="next-label">Next structural step</div>
+  <div class="small-text">${vNext}</div>
+</div>
+<div class="rec-box">
+  <div class="rec-label">Concrete recommendations for T=1</div>
+  <ol class="rec-list">${recs}</ol>
+</div>
+<div class="summary-box">
+  <div class="summary-label">Structural interpretation</div>
+  <div class="summary-text">${summary}</div>
+</div>
+<div class="footer-pdf">
+  <div>Structurology — A new academic framework</div>
+  <div>Conceived and developed by <strong>Changho Song</strong>, Founder of Velsanet</div>
+  <div>Powered by Claude (Anthropic) &amp; DeepSeek · github.com/joa337/structurology</div>
+  <div>Structure belongs to everyone — Structurology is an open framework.</div>
+</div>
+</body></html>`;
+
+  function getStatusClass(s) {
+    if (!s) return 'partial';
+    if (s.includes('New') || s.includes('Created')) return 'new';
+    if (s.includes('Unchanged') || s.includes('Same')) return 'same';
+    if (s.includes('Dramatic') || s.includes('Expanded') || s.includes('expanded')) return 'expand';
+    return 'partial';
+  }
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 800);
+}
+
+function getStatusClass(s) {
+  if (!s) return 'partial';
+  if (s.includes('New') || s.includes('Created')) return 'new';
+  if (s.includes('Unchanged') || s.includes('Same')) return 'same';
+  if (s.includes('Dramatic') || s.includes('Expanded')) return 'expand';
+  return 'partial';
+}
+
+function resetAnalyzer() {
+  fileData = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileName').style.display = 'none';
+  document.getElementById('result').classList.remove('active');
+  document.getElementById('errorBox').classList.remove('active');
+  updateAnalyzeBtn();
+}
+
+// ── Init ──
+window.onload = () => {
+  loadCounters();
+  if (claudeKey) {
+    document.getElementById('claudeKeyInput').value = claudeKey;
+    showStatus('claudeStatus', 'ok', 'Anthropic key loaded.');
+  }
+  if (deepseekKey) {
+    document.getElementById('deepseekKeyInput').value = deepseekKey;
+    showStatus('deepseekStatus', 'ok', 'DeepSeek key loaded.');
+  }
+  updateAnalyzeBtn();
+};
+</script>
+</body>
+</html>
